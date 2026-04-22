@@ -20,7 +20,7 @@ def db():
             host = "mariadb",
             user = "root",  
             password = "password",
-            database = "washworld"
+            database = "washworld_eksamen"
         )
         cursor = db.cursor(dictionary=True)
         return db, cursor
