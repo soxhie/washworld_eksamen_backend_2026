@@ -22,3 +22,9 @@ app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 app.config["JWT_SECRET_KEY"] = "passwordpasswordpasswordpassword"
 jwt = JWTManager(app)
+
+
+##############################
+@app.get("/login")
+def show_login():
+    return render_template("page_login.html")
