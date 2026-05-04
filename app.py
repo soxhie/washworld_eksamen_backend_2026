@@ -59,10 +59,7 @@ def signup():
             error_message = f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characters"
             return jsonify({"status": "error", "message": error_message}), 400
         
-        if "company_exception user_role" in str(ex):
-            error_message = f"user role {x.USER_ROLE_MIN} to {x.USER_ROLE_MAX} characters"
-            return jsonify({"status": "error", "message": error_message}), 400
-        
+       
         if "Duplicate entry" in str(ex) and "user_email" in str(ex):
             error_message = "You already have an account with this email, please or use another email"
             return jsonify({"status": "error", "message": error_message}), 400
