@@ -33,13 +33,13 @@ def index():
 def signup():
     try:
         user_id = str(uuid.uuid4())
-        user_name = x.validate_user_name(request.json.get("user_name", ""))
-        user_last_name = x.validate_user_last_name(request.json.get("user_last_name", ""))
-        user_address = x.validate_user_address(request.json.get("user_address", ""))
-        user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
-        user_email = x.validate_email(request.json.get("user_email", ""))
-        user_payment_gateway_fk = x.validate_id(request.json.get("user_payment_gateway_fk", ""))
-        user_password = x.validate_user_password(request.json.get("user_password", ""))
+        user_name = x.validate_user_name(request.form.get("user_name", ""))
+        user_last_name = x.validate_user_last_name(request.form.get("user_last_name", ""))
+        user_address = x.validate_user_address(request.form.get("user_address", ""))
+        user_phone = x.validate_user_phone(request.form.get("user_phone", ""))
+        user_email = x.validate_email(request.form.get("user_email", ""))
+        user_payment_gateway_fk = x.validate_id(request.form.get("user_payment_gateway_fk", ""))
+        user_password = x.validate_user_password(request.form.get("user_password", ""))
         user_password_hashed = generate_password_hash(user_password)
         user_created_at = int(time.time())
 

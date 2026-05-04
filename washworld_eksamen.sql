@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: mariadb
--- Generation Time: May 04, 2026 at 10:59 AM
+-- Generation Time: May 04, 2026 at 11:13 AM
 -- Server version: 10.6.20-MariaDB-ubu2004
 -- PHP Version: 8.3.26
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `washworld`
+-- Database: `washworld_eksamen`
 --
 
 -- --------------------------------------------------------
