@@ -20,7 +20,7 @@ app = Flask(__name__)
 CORS(app)  # allows everything
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
-app.config["JWT_SECRET_KEY"] = "passwordpasswordpasswordpassword"
+app.config["JWT_SECRET_KEY"] = "password"
 jwt = JWTManager(app)
 
 
@@ -32,25 +32,43 @@ def index():
 @app.post("/signup")
 def signup():
     try:
-        user_id = str(uuid.uuid4())
+        
+        user_id = uuid.uuid4().hex
         user_name = x.validate_user_name(request.json.get("user_name", ""))
         user_last_name = x.validate_user_last_name(request.json.get("user_last_name", ""))
         user_address = x.validate_user_address(request.json.get("user_address", ""))
         user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
         user_email = x.validate_email(request.json.get("user_email", ""))
-        user_payment_gateway_fk = x.validate_id(request.json.get("user_payment_gateway_fk", ""))
         user_password = x.validate_user_password(request.json.get("user_password", ""))
-        user_password_hashed = generate_password_hash(user_password)
+        user_hashed_password = generate_password_hash(user_password)
         user_created_at = int(time.time())
-
-         
+        user_verification_key = uuid.uuid4().hex
         
+      
         db, cursor = x.db()
-        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name, user_email, user_hashed_password, created_at, user_address, user_phone, user_payment_gateway_fk))
+
+        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, user_created_at ,None,user_verification_key,  None ))
         db.commit()
+        # cursor.execute("SELECT DATABASE()")
+
+        # ic("CONNECTED DATABASE:", cursor.fetchone())
+        # cursor.execute("SELECT COUNT(*) FROM users")
+
+        # ic("TOTAL USERS:", cursor.fetchone())
+        
+        # ic(cursor.rowcount)
+        html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
+        x.send_email(user_email, html)
+        return jsonify({"status": "ok", "message": "Signup successful"})
+        
     except Exception as ex:
-       
+        if "company_exception user_name" in str(ex):
+            return jsonify({ "status":"error", "message":f"user first name {x.USER_NAME_MIN} to {x.USER_NAME_MAX} characters"}), 400
+    
+        if "company_exception user_last_name" in str(ex):
+            return jsonify({ "status":"error", "message":f"user last name {x.USER_LAST_NAME_MIN} to {x.USER_LAST_NAME_MAX} characters"}), 400
+    
         if "company_exception user_email" in str(ex):
             error_message = "email invalid"
             return jsonify({"status": "error", "message": error_message}), 400
@@ -61,7 +79,7 @@ def signup():
         
        
         if "Duplicate entry" in str(ex) and "user_email" in str(ex):
-            error_message = "You already have an account with this email, please or use another email"
+            error_message = "Email already in use"
             return jsonify({"status": "error", "message": error_message}), 400
         # Worst case
         error_message = "System under maintenance"
@@ -73,4 +91,72 @@ def signup():
 @app.get("/signup")
 def show_signup():
     return render_template("page_signup.html")
+
+
+
+#################### 
+@app.get("/sign-up-email") 
+def signup_email():
+ try:
+     
+    user_id = uuid.uuid4().hex
+    user_name = x.validate_user_name(request.json.get("user_name", ""))
+    user_verification_key = uuid.uuid4().hex
+    user_verified_at= int(time.time())
+    ic(user_verification_key)
+    db, cursor = x.db()
+    q = "INSERT INTO users (user_id, user_name, user_verification_key, user_verified_at) VALUES (%s, %s, %s, %s)"
+    cursor.execute(q,(user_id, user_name, user_verification_key,  user_verified_at))
+    db.commit()
+    
+    
+    html = render_template("___sign_up_email.html", user_verification_key = user_verification_key )
+    x.send_email(html)
+    return "jjj"
+ except Exception as ex:
+    ic(ex)
+    return str(ex), 500
+ finally:
+    if "cursor" in locals():cursor.close()
+    if "db" in locals(): db.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ##############################
+@app.get("/verify/<key>")
+def verify_account(key):
+    try:
+        key = x.validate_uuid4(key)
+        db, cursor = x.db()
+        user_verified_at = int(time.time())
+        q = """
+            UPDATE users
+            SET user_verified_at = %s
+            WHERE user_verification_key = %s AND user_verified_at = 0
+        """
+        cursor.execute(q, (user_verified_at, key))
+        db.commit()
+        if cursor.rowcount == 0:
+            return "user already verified"
+
+        return f"Welcome to the system, you are verified"
+    except Exception as ex: 
+        ic(ex)
+        if "company_exception uuid4 invalid" in str(ex):
+            return "Invalid key", 400
+
+        return str(ex), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
