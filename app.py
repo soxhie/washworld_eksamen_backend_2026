@@ -121,6 +121,8 @@ def signup_email():
     if "db" in locals(): db.close()
 
 
+
+
 ##############################
 @app.get("/verify/<key>")
 def verify_account(key):
