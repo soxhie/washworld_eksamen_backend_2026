@@ -28,8 +28,8 @@ jwt = JWTManager(app)
 @app.get("/")
 def index():
     return jsonify({"status":"ok", "message":"Connected"})
-##############################
-@app.post("/signup")
+############################## all signup routes
+@app.post("/api-signup")
 def signup():
     try:
         
@@ -150,3 +150,55 @@ def verify_account(key):
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
+        
+        
+######################## LOGIN
+@app.get("/login")
+def show_login():
+    return render_template("login.html")
+
+##################################################### not in class
+@app.post("/api-login")
+def login():
+    try:
+        user_email = x.validate_email(request.json.get("user_email", ""))
+        ic(user_email)
+        
+        user_password = x.validate_user_password(request.json.get("user_password", ""))
+        ic(user_password)
+        
+        db, cursor = x.db()
+        q = "SELECT * FROM users WHERE user_email = %s LIMIT 1"
+        #Receiving JSON in Views(https://flask.palletsprojects.com/en/stable/patterns/javascript/) 
+        
+        cursor.execute(q,(user_email,))
+        user = cursor.fetchone()
+        ic(user)
+            
+        if not user:
+            return jsonify({"status":"error", "message":"User doesn't exist"}), 400
+        if not check_password_hash(user["user_password"], user_password):
+            return jsonify({"status":"error", "message":"Invalid credentials"}), 400
+        user.pop("user_password")
+        session["user"] = user
+        html = render_template ("email_login_warning.html", ip = request.remote_addr)
+        x.send_email(user_email, html)
+        
+        return jsonify({"status":"ok", "message":"Login successful", "user":user}), 200
+    
+    except Exception as ex:
+        ic(ex)
+        
+        if "company_exception user_email" in str(ex):
+            return jsonify({"status":"error","message":"Email invalid"}), 400
+        
+        if "company_exception user_password" in str(ex):
+            return jsonify({"status":"error", "message":f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"}), 400
+        
+        return jsonify ({"status":"error", "message":"System under maintenance"}), 500
+    
+    finally:
+        if "cursor" in locals():cursor.close()
+        if "db" in locals(): db.close()
+
+#########
