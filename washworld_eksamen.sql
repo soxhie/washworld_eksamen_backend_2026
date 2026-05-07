@@ -18,7 +18,10 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
+<<<<<<< HEAD:washworld_eksamen.sql
 -- Database: `washworld_eksamen`
+=======
+>>>>>>> 18b417d043684b3225ab6375438949e2fafa20a6:washworld (1).sql
 --
 
 -- --------------------------------------------------------

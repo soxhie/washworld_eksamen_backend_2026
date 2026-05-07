@@ -71,12 +71,12 @@ def validate_email( email ):
         raise Exception("company_exception email")
     return email
 ##############################
-REGEX_USER_ADRESS = "/^(\d{1,}) [a-zA-Z0-9\s]+(\,)? [a-zA-Z]+(\,)? [A-Z]{2} [0-9]{5,6}$/"
-def validate_user_adress(user_adress):
-    user_adress = user_adress.strip()
-    if not re.match(REGEX_USER_ADRESS, user_adress):
+REGEX_USER_ADDRESS = "^[0-9]+\s[a-zA-ZæøåÆØÅ0-9\s]+,\s[a-zA-ZæøåÆØÅ\s]+,\s[A-Z]{2}\s[0-9]{4,6}$"
+def validate_user_address(user_address):
+    user_address = user_address.strip()
+    if not re.match(REGEX_USER_ADDRESS, user_address):
         raise Exception("company_exception user_adress")
-    return user_adress
+    return user_address
 ##############################
 REGEX_USER_PHONE = "^(\+45)?\s?(\d{2}\s?){4}$"
 def validate_user_phone(user_phone):
@@ -87,13 +87,18 @@ def validate_user_phone(user_phone):
 ##############################
 USER_PASSWORD_MIN = 8
 USER_PASSWORD_MAX = 50
-
-REGEX_USER_PASSWORD = f"^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).{{8,}}$"
+REGEX_USER_PASSWORD = f"^.{{{USER_PASSWORD_MIN},{USER_PASSWORD_MAX}}}$"
 def validate_user_password( password ):
-    user_password = password.strip()
-    if not re.match(REGEX_USER_PASSWORD, user_password):
+    if not re.match(REGEX_USER_PASSWORD, password):
         raise Exception("company_exception user_password")
-    return user_password
+    return password
+
+# REGEX_USER_PASSWORD = f"^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).{{8,}}$"
+# def validate_user_password( password ):
+#     user_password = password.strip()
+#     if not re.match(REGEX_USER_PASSWORD, user_password):
+#         raise Exception("company_exception user_password")
+#     return user_password
 
 ##############################
 REGEX_ID = "^[a-f0-9]{32}$"
@@ -102,19 +107,7 @@ def validate_id(id):
     if not re.match(REGEX_ID, id):
         raise Exception("company_exception id")
     return id
-##############################
-USER_ROLE_MIN = 2
-USER_ROLE_MAX = 20
-REGEX_USER_ROLE = f"^.{{{USER_ROLE_MIN},{USER_ROLE_MAX}}}$"
-def validate_user_role():
-    user_role = request.form.get("user_role", "").strip()
-    if not re.match(REGEX_USER_ROLE, user_role):
-        raise Exception("company_exception user_role")
-    return user_role
-##############################
-# You know that the PK is a uuid4
-# uuid4 follows certain patterns
-#  TODO: replace game_pk and user_pk in the forms 
+
 
 ##############################
 # 0 to 9 letters a to f
@@ -126,11 +119,63 @@ def validate_uuid4(uuid4):
     return uuid
 
 ##############################
-REGEX_PARANOID = "^[0-9a-f]{64}$"
-def validate_uuid4_paranoia(uuid4):
-    uuid = uuid4.strip()
-    if not re.match(REGEX_PARANOID, uuid):
-        raise Exception("company_exception paranoia")
-    return uuid
+def send_email(receiver_email,html):
+    try:
+        # Create a gmail fullflaskdemomail
+        # Enable (turn on) 2 step verification/factor in the google account manager
+        # Visit: https://myaccount.google.com/apppasswords
+        # Copy the key :
+ 
+        # Email and password of the sender's Gmail account
+        sender_email = "sophiehjelm010203@gmail.com"
+        password = "vknz xvlf bxrp ijsw"  # If 2FA is on, use an App Password instead
+ 
+        # Receiver email address
+        # receiver_email = ""
+        
+        # Create the email message
+        message = MIMEMultipart()
+        message["From"] = "WashWorld Exam"
+        message["To"] = receiver_email
+        message["Subject"] = "testing email"
+ 
+        # Body of the email
+        # body = render_template("email_welcome.html")
+        message.attach(MIMEText(html, "html"))
+ 
+        # Connect to Gmail's SMTP server and send the email
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()  # Upgrade the connection to secure
+            server.login(sender_email, password)
+            server.sendmail(sender_email, receiver_email, message.as_string())
+        print("Email sent successfully!")
+ 
+        return "email sent"
+       
+    except Exception as ex:
+        ic(ex)
+        return "cannot send email", 500
+    finally:
+        pass
+    
+    
+    
+############# 
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
