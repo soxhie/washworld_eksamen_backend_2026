@@ -3,7 +3,7 @@ import uuid
 import x
 import time
 from flask_session import Session
-from werkzeug.security import generate_password_hash  # since I don't have a create user, I won't use these,
+from werkzeug.security import generate_password_hash  
 from werkzeug.security import check_password_hash 
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
@@ -32,7 +32,7 @@ def index():
 @app.post("/api-signup")
 def signup():
     try:
-        
+        #USERS DATA
         user_id = uuid.uuid4().hex
         user_name = x.validate_user_name(request.json.get("user_name", ""))
         user_last_name = x.validate_user_last_name(request.json.get("user_last_name", ""))
@@ -40,33 +40,48 @@ def signup():
         user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
         user_email = x.validate_email(request.json.get("user_email", ""))
         user_password = x.validate_user_password(request.json.get("user_password", ""))
+        
+        #CAR DATA
+        car_id= uuid.uuid4().hex
+        car_plate = request.json.get("car_plate", "")
+        car_user_fk = user_id
+        #PAYMENT_GATEWAY DATA
+        payment_id = uuid.uuid4().hex
+        payment_name = request.json.get("payment_name", "")
+        user_payment_fk = user_id
+        #USER_MEMBERSHIP DATA
+        user_memberships_id = request.json.get("user_membership_id", "")
+        membership_user_fk = user_id
+        membership_fk = request.json.get("membership_fk", "")
+        start_date = int(time.time())
+        
+        membership_fk = request.json.get("membership_fk", "")
+       
+
+        #USERS DATA
         user_hashed_password = generate_password_hash(user_password)
-        user_created_at = int(time.time())
+        created_at = int(time.time())
+        
         user_verification_key = uuid.uuid4().hex
-        # user_id = uuid.uuid4().hex
-        # user_name = x.validate_user_name(request.form.get("user_name", ""))
-        # user_last_name = x.validate_user_last_name(request.form.get("user_last_name", ""))
-        # user_address = x.validate_user_address(request.form.get("user_address", ""))
-        # user_phone = x.validate_user_phone(request.form.get("user_phone", ""))
-        # user_email = x.validate_email(request.form.get("user_email", ""))
-        # user_password = x.validate_user_password(request.form.get("user_password", ""))
-        # user_hashed_password = generate_password_hash(user_password)
-        # user_created_at = int(time.time())
-        # user_verification_key = uuid.uuid4().hex
       
+    
         db, cursor = x.db()
 
         q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, user_created_at ,None,user_verification_key,  None ))
-        db.commit()
-        # cursor.execute("SELECT DATABASE()")
-
-        # ic("CONNECTED DATABASE:", cursor.fetchone())
-        # cursor.execute("SELECT COUNT(*) FROM users")
-
-        # ic("TOTAL USERS:", cursor.fetchone())
+        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, created_at ,None,user_verification_key,  None ))
         
-        # ic(cursor.rowcount)
+        
+        q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (car_id, car_plate, car_user_fk, created_at, None, None))
+       
+        q = "INSERT INTO payment_gateway VALUES(%s, %s, %s, %s, %s) "
+        cursor.execute(q, (payment_id, payment_name, user_payment_fk, created_at, None))
+        
+        q = "INSERT INTO user_memberships VALUES(%s, %s, %s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (user_memberships_id, membership_user_fk, membership_fk, start_date, None, "active", created_at, None))
+        
+        
+        db.commit()
         html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
         x.send_email(user_email, html)
         return jsonify({"status": "ok", "message": "Signup successful"})
@@ -166,7 +181,7 @@ def verify_account(key):
 def show_login():
     return render_template("page_login.html")
 
-##################################################### not in class
+##################################################### 
 @app.post("/api-login")
 def login():
     try:
@@ -187,14 +202,16 @@ def login():
         
         cursor.execute(q,(user_email,))
         user = cursor.fetchone()
-        # access_token = create_access_token(identity=str(user["user_email"]))
+        
         # ic(access_token)
         ic(user)
             
         if not user:
-            return jsonify({"status":"error", "message":"User doesn't exist"}), 400
+            return jsonify({"status": "error", "message": "User doesn't exist"}), 400
+
         if not check_password_hash(user["user_password"], user_password):
-            return jsonify({"status":"error", "message":"Invalid credentials"}), 400
+            return jsonify({"status": "error", "message": "Invalid credentials"}), 400
+        access_token = create_access_token(identity=str(user["user_email"]))
        
         
         
@@ -203,7 +220,7 @@ def login():
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
         x.send_email(user_email, html)
         
-        return jsonify({"status":"ok", "message":"Login successful", "user":user}), 200
+        return jsonify({"status":"ok", "message":"Login successful", "user":user, "access_token": access_token}), 200
     
     except Exception as ex:
         ic(ex)
@@ -220,4 +237,81 @@ def login():
         if "cursor" in locals():cursor.close()
         if "db" in locals(): db.close()
 
-#########
+################# 
+@app.get("/api-profile")
+@jwt_required()
+def profile():
+
+    current_user = get_jwt_identity()
+
+    return jsonify({
+        "status": "ok",
+        "user": current_user
+    }), 200
+
+############# Mine oplysninger
+@app.get("/api-my-info")
+@jwt_required()
+def get_my_info():
+    try:
+        user_email = get_jwt_identity()
+
+        db, cursor = x.db()
+
+        q = """
+        SELECT 
+            user_id,
+            user_name,
+            user_last_name
+            user_email,
+            user_address,
+            user_phone
+            user
+        FROM users
+        LEFT JOIN cars
+        ON cars.user_id_fk = users.user_id
+        WHERE user_email = %s
+        LIMIT 1
+        """
+
+        cursor.execute(q, (user_email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({
+                "status": "error",
+                "message": "User not found"
+            }), 404
+
+        return jsonify({
+            "status": "ok",
+            "user": user
+        }), 200
+
+    except Exception as ex:
+        ic(ex)
+        return jsonify({
+            "status": "error",
+            "message": "System under maintenance"
+        }), 500
+
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+######### forgot password 
+# @app.post("/api-forgot-password")
+# def forgot_password()
