@@ -46,16 +46,22 @@ def signup():
         car_plate = request.json.get("car_plate", "")
         car_user_fk = user_id
         #PAYMENT_GATEWAY DATA
-        payment_id = uuid.uuid4().hex
-        payment_name = request.json.get("payment_name", "")
-        user_payment_fk = user_id
+        # payment_id = uuid.uuid4().hex
+        # payment_name = request.json.get("payment_name", "")
+        # user_payment_fk = user_id
+        
         #USER_MEMBERSHIP DATA
-        user_memberships_id = request.json.get("user_membership_id", "")
+        user_memberships_id = uuid.uuid4().hex
         membership_user_fk = user_id
         membership_fk = request.json.get("membership_fk", "")
         start_date = int(time.time())
         
-        membership_fk = request.json.get("membership_fk", "")
+       # TRANSACTION DATA
+        transaction_id = uuid.uuid4().hex
+        transaction_user_fk = user_id
+        transaction_gateway_fk = request.json.get("transaction_gateway_fk", "")
+        transaction_membership_fk = membership_fk
+        payment_at = int(time.time())
        
 
         #USERS DATA
@@ -74,8 +80,8 @@ def signup():
         q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
         cursor.execute(q, (car_id, car_plate, car_user_fk, created_at, None, None))
        
-        q = "INSERT INTO payment_gateway VALUES(%s, %s, %s, %s, %s) "
-        cursor.execute(q, (payment_id, payment_name, user_payment_fk, created_at, None))
+        q = "INSERT INTO transactions VALUES(%s, %s, %s, %s, %s) "
+        cursor.execute(q, (transaction_id, transaction_user_fk, transaction_gateway_fk, transaction_membership_fk, payment_at))
         
         q = "INSERT INTO user_memberships VALUES(%s, %s, %s, %s, %s, %s, %s, %s) "
         cursor.execute(q, (user_memberships_id, membership_user_fk, membership_fk, start_date, None, "active", created_at, None))
@@ -253,24 +259,46 @@ def profile():
 @app.get("/api-my-info")
 @jwt_required()
 def get_my_info():
+
     try:
+
         user_email = get_jwt_identity()
 
         db, cursor = x.db()
 
         q = """
-        SELECT 
-            user_id,
-            user_name,
-            user_last_name
-            user_email,
-            user_address,
-            user_phone
-            user
+        SELECT
+            users.user_id,
+            users.user_name,
+            users.user_last_name,
+            users.user_email,
+            users.user_adress,
+            users.user_phone,
+            cars.car_plate,
+            payment_gateway.payment_name,
+            memberships.membership_name,
+            memberships.membership_description,
+            memberships.membership_price
+
         FROM users
+
         LEFT JOIN cars
-        ON cars.user_id_fk = users.user_id
-        WHERE user_email = %s
+        ON cars.car_user_fk = users.user_id
+        
+        LEFT JOIN payment_gateway
+        ON payment_gateway.user_payment_fk = users.user_id
+
+        LEFT JOIN user_memberships
+        ON user_memberships.membership_user_fk = users.user_id
+
+        LEFT JOIN memberships
+        ON memberships.membership_id = user_memberships.membership_fk 
+        
+        LEFT JOIN payment_gateway
+        ON memberships.membership_id = user_memberships.membership_fk
+
+        WHERE users.user_email = %s
+
         LIMIT 1
         """
 
@@ -289,13 +317,16 @@ def get_my_info():
         }), 200
 
     except Exception as ex:
+
         ic(ex)
+
         return jsonify({
             "status": "error",
             "message": "System under maintenance"
         }), 500
 
     finally:
+
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
