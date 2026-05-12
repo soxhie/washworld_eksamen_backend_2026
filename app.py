@@ -274,8 +274,11 @@ def get_my_info():
             users.user_email,
             users.user_adress,
             users.user_phone,
+
             cars.car_plate,
-            payment_gateway.payment_name,
+
+            payment_gateway.payment_gateway_name,
+
             memberships.membership_name,
             memberships.membership_description,
             memberships.membership_price
@@ -284,17 +287,17 @@ def get_my_info():
 
         LEFT JOIN cars
         ON cars.car_user_fk = users.user_id
-        
+
+        LEFT JOIN transactions
+        ON transactions.transaction_user_fk = users.user_id
+
         LEFT JOIN payment_gateway
-        ON payment_gateway.user_payment_fk = users.user_id
+        ON payment_gateway.payment_gateway_id = transactions.transaction_gateway_fk
 
         LEFT JOIN user_memberships
         ON user_memberships.membership_user_fk = users.user_id
 
         LEFT JOIN memberships
-        ON memberships.membership_id = user_memberships.membership_fk 
-        
-        LEFT JOIN payment_gateway
         ON memberships.membership_id = user_memberships.membership_fk
 
         WHERE users.user_email = %s
