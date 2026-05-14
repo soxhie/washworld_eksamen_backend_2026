@@ -119,6 +119,17 @@ def validate_uuid4(uuid4):
     return uuid
 
 ##############################
+REGEX_UUID4_PARANOIA = "^[0-9a-f]{64}$"
+def validate_uuid4_paranoia(uuid4):
+    uuid = uuid4.strip()
+    if not re.match(REGEX_UUID4_PARANOIA, uuid):
+        raise Exception("company_exception paranoia")
+    return uuid
+
+
+
+
+##############################
 def send_email(receiver_email,html):
     try:
         # Create a gmail fullflaskdemomail
