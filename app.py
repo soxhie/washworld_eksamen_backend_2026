@@ -202,3 +202,14 @@ def login():
         if "db" in locals(): db.close()
 
 #########
+
+
+############# Log Out ##################
+@app.get("/logout")
+def logout():
+    try:
+        session.clear()
+        return redirect("/login")
+    except Exception as ex:
+        ic(ex)
+        return "ups"
