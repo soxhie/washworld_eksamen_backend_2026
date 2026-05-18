@@ -354,6 +354,67 @@ def get_my_info():
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
+################
+@app.get("/api-my-membership")
+@jwt_required()
+def get_my_membership():
+
+    try:
+
+        user_email = get_jwt_identity()
+
+        db, cursor = x.db()
+
+        q = """
+        SELECT
+            
+
+            memberships.membership_name,
+            memberships.membership_description,
+            memberships.membership_price
+            
+
+        FROM users
+
+        LEFT JOIN user_memberships
+        ON user_memberships.membership_user_fk = users.user_id
+
+        LEFT JOIN memberships
+        ON memberships.membership_id = user_memberships.membership_fk
+
+        WHERE users.user_email = %s
+
+        LIMIT 1
+        """
+      
+        cursor.execute(q, (user_email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({
+                "status": "error",
+                "message": "User not found"
+            }), 404
+
+        return jsonify({
+            "status": "ok",
+            "user": user
+        }), 200
+
+    except Exception as ex:
+
+        ic(ex)
+
+        return jsonify({
+            "status": "error",
+            "message": "System under maintenance"
+        }), 500
+
+    finally:
+
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
 
 ############# Update Mine oplysninger
 @app.patch("/api-update-my-info")
@@ -430,15 +491,6 @@ def update_my_info():
         if "db" in locals(): db.close()
 
 
-
-
-
-
-
-
-
-
-
 ######### forgot password 
 ##############################
 @app.get("/forgot-password")
@@ -454,6 +506,7 @@ def forgot_password():
         
         db, cursor = x.db()
         
+        db.start_transaction()
         # to check if the user exists
         q = "SELECT user_id FROM users WHERE user_email = %s"
         cursor.execute(q, (user_email,))
@@ -475,6 +528,8 @@ def forgot_password():
 
     except Exception as ex:
         ic(ex)
+        
+        if "db" in locals(): db.rollback()
 
         if "company_exception email" in str(ex):
             return "invalid email", 400
@@ -521,13 +576,13 @@ def show_reset_password(key):
 @app.post("/reset-password")
 def reset_password():
     try:
-        password = x.validate_user_password(request.json.get("password", ""))
-        confirm_password = request.json.get("confirm-password", "").strip()
+        password = x.validate_user_password(request.form.get("password", ""))
+        confirm_password = request.form.get("confirm-password", "").strip()
 
         if confirm_password != password:
             return "Passwords do not match", 400
 
-        key = x.validate_uuid4_paranoia(request.json.get("key", ""))
+        key = x.validate_uuid4_paranoia(request.form.get("key", ""))
 
         user_hashed_password = generate_password_hash(password)
 
@@ -544,8 +599,10 @@ def reset_password():
         db.commit()
 
         if cursor.rowcount == 0:
+            # TODO: Change string message to jsonify, so react can understand it
             return "Oopsy try again", 400
 
+        # TODO: change string to jsonify
         return "Password changed, please login"
 
     except Exception as ex:
