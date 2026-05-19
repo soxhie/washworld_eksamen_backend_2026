@@ -129,9 +129,22 @@ def signup():
 @app.get("/signup")
 def show_signup():
     return render_template("page_signup.html")
-
-
-
+#################### 
+@app.get("/email-validation")
+def email_validation():
+    try:
+        user_email = x.validate_email(request.json.get("user_email",""))
+    except Exception as ex:
+        ic(ex)
+   
+        if "Duplicate entry" in str(ex) and "user_email" in str(ex):
+            error_message = "Email already in use"
+            return jsonify({"status": "error", "message": error_message}), 400
+       
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+        
 #################### 
 @app.post("/sign-up-email") 
 def signup_email():
@@ -147,7 +160,7 @@ def signup_email():
     cursor.execute(q,(user_id, user_name, user_verification_key,  None))
     db.commit()
     
-    
+
     html = render_template("___sign_up_email.html", user_verification_key = user_verification_key )
     x.send_email(html)
     return "jjj"
@@ -157,9 +170,6 @@ def signup_email():
  finally:
     if "cursor" in locals():cursor.close()
     if "db" in locals(): db.close()
-
-
-
 
 ##############################
 @app.get("/verify/<key>")
