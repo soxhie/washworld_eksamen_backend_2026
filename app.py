@@ -127,9 +127,9 @@ def signup():
             return jsonify({"status": "error", "message": error_message}), 400
         
        
-        if "Duplicate entry" in str(ex) and "user_email" in str(ex):
-            error_message = "Email already in use"
-            return jsonify({"status": "error", "message": error_message}), 400
+            if "Duplicate entry" in str(ex) and "user_email" in str(ex):
+                error_message = "Email already in use"
+                return jsonify({"status": "error", "message": error_message}), 400
         # Worst case
         error_message = "System under maintenance"
         return jsonify({"status": "error", "message": str(ex)}), 500
@@ -169,8 +169,23 @@ def signup_email():
     if "cursor" in locals():cursor.close()
     if "db" in locals(): db.close()
 
-
-
+##############################
+@app.get("/email-validation")
+def email_validation():
+    try: 
+        user_email = x.validate_email(request.args.get("user_email", ""))
+        db, cursor = x.db()
+        q = "SELECT user_email FROM users WHERE user_email = %s"
+        cursor.execute(q, (user_email,))
+        row = cursor.fetchone()
+        if row:
+            return jsonify({"status": "error", "message": "Email already in use"}), 400
+        return jsonify({"status": "ok", "message": "Email is valid"}), 200
+    except Exception as ex:
+        ic(ex)
+        if "Duplicate entry" in str(ex) and "user_email" in str(ex):
+            error_message = "Email already in use"
+            return jsonify({"status": "error", "message": error_message}), 400
 
 ##############################
 @app.get("/verify/<key>")
