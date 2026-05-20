@@ -200,6 +200,41 @@ def verify_account(key):
         if "db" in locals(): db.close()
         
         
+        
+############################ get payment method (for signup )
+@app.get("/api-payment-gateways")
+def get_payment_gateways():
+    try:
+        db, cursor = x.db()
+        cursor.execute("SELECT  * FROM payment_gateway")
+        gateways = cursor.fetchall()
+        return jsonify({"status": "ok", "gateways": gateways})
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+############################ get mememberships(for signup )
+
+@app.get("/api-memberships")
+def get_memberships():
+    try:
+        db, cursor = x.db()
+        cursor.execute("SELECT * FROM memberships")
+        memberships = cursor.fetchall()
+        return jsonify({"status": "ok", "memberships": memberships})
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+
+
+
 ######################## LOGIN
 @app.get("/login")
 def show_login():
@@ -354,7 +389,7 @@ def get_my_info():
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
-################
+################ for profile page
 @app.get("/api-my-membership")
 @jwt_required()
 def get_my_membership():
