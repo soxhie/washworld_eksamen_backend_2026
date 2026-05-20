@@ -75,24 +75,23 @@ def signup():
        
       
         db, cursor = x.db()
-        db.start_transaction()
 
         q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
         cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, user_created_at ,None,user_verification_key,  None ))
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
-        # db.start_transaction()
-        # q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        # cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, created_at ,None,user_verification_key,  None, None ))
+        db.start_transaction()
+        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, created_at ,None,user_verification_key,  None, None ))
         
         
         q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (car_id, car_plate, car_user_fk, user_created_at, None, None))
+        cursor.execute(q, (car_id, car_plate, car_user_fk, created_at, None, None))
        
         q = "INSERT INTO transactions VALUES(%s, %s, %s, %s, %s) "
-        cursor.execute(q, (transaction_id, transaction_user_fk, transaction_gateway_fk, transaction_membership_fk, user_created_at))
+        cursor.execute(q, (transaction_id, transaction_user_fk, transaction_gateway_fk, transaction_membership_fk, created_at))
         
         q = "INSERT INTO user_memberships VALUES(%s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_memberships_id, membership_user_fk, membership_fk, start_date, None, "active", user_created_at, None))
+        cursor.execute(q, (user_memberships_id, membership_user_fk, membership_fk, start_date, None, "active", created_at, None))
         
         
         db.commit()
