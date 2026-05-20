@@ -3,7 +3,7 @@ import uuid
 import x
 import time
 from flask_session import Session
-from werkzeug.security import generate_password_hash  # since I don't have a create user, I won't use these,
+from werkzeug.security import generate_password_hash  
 from werkzeug.security import check_password_hash 
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
@@ -32,7 +32,6 @@ def index():
 @app.post("/api-signup")
 def signup():
     try:
-        
         #USERS DATA
         user_id = uuid.uuid4().hex
         user_name = x.validate_user_name(request.json.get("user_name", ""))
@@ -67,17 +66,15 @@ def signup():
 
         #USERS DATA
         user_hashed_password = generate_password_hash(user_password)
-        user_created_at = int(time.time())
-        user_verification_key = uuid.uuid4().hex
+        created_at = int(time.time())
         
+        user_verification_key = uuid.uuid4().hex
         ic(user_verification_key)
         
        
       
+    
         db, cursor = x.db()
-
-        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, user_created_at ,None,user_verification_key,  None ))
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
         db.start_transaction()
         q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
@@ -95,14 +92,6 @@ def signup():
         
         
         db.commit()
-        # cursor.execute("SELECT DATABASE()")
-
-        # ic("CONNECTED DATABASE:", cursor.fetchone())
-        # cursor.execute("SELECT COUNT(*) FROM users")
-
-        # ic("TOTAL USERS:", cursor.fetchone())
-        
-        # ic(cursor.rowcount)
         html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
         x.send_email(user_email, html)
         return jsonify({"status": "ok", "message": "Signup successful"})
@@ -249,9 +238,9 @@ def get_memberships():
 ######################## LOGIN
 @app.get("/login")
 def show_login():
-    return render_template("login.html")
+    return render_template("page_login.html")
 
-##################################################### not in class
+##################################################### 
 @app.post("/api-login")
 def login():
     try:
@@ -260,18 +249,25 @@ def login():
         
         user_password = x.validate_user_password(request.json.get("user_password", ""))
         ic(user_password)
+        # user_email = x.validate_email(request.form.get("user_email", ""))
+        # ic(user_email)
+
+        # user_password = x.validate_user_password(request.form.get("user_password", ""))
+        # ic(user_password)
         
         db, cursor = x.db()
         q = "SELECT * FROM users WHERE user_email = %s LIMIT 1"
         
         cursor.execute(q,(user_email,))
         user = cursor.fetchone()
+        
+        # ic(access_token)
         ic(user)
         
         if not user:
-            return jsonify({"status":"error", "message":"User doesn't exist"}), 400
+            return jsonify({"status": "error", "message": "User doesn't exist"}), 400
+
         if not check_password_hash(user["user_password"], user_password):
-            return jsonify({"status":"error", "message":"Invalid credentials"}), 400
             return jsonify({"status": "error", "message": "Invalid credentials"}), 400
         access_token = create_access_token(identity=str(user["user_email"]))
         
@@ -283,13 +279,13 @@ def login():
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
         x.send_email(user_email, html)
         
-        return jsonify({"status":"ok", "message":"Login successful", "user":user}), 200
+        return jsonify({"status":"ok", "message":"Login successful", "user":user, "access_token": access_token}), 200
     
     except Exception as ex:
         ic(ex)
         
         if "company_exception user_email" in str(ex):
-            return jsonify({"status":"error","message":"Email invalid"}), 400
+            return jsonify({"status":"error","message":"Invalid email"}), 400
         
         if "company_exception user_password" in str(ex):
             return jsonify({"status":"error", "message":f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"}), 400
@@ -300,7 +296,6 @@ def login():
         if "cursor" in locals():cursor.close()
         if "db" in locals(): db.close()
 
-#########
 ################# this was for testing, DELETE
 # @app.get("/api-profile")
 # @jwt_required()
