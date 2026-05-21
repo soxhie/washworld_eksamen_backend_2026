@@ -67,7 +67,7 @@ def signup():
 
         #USERS DATA
         user_hashed_password = generate_password_hash(user_password)
-        user_created_at = int(time.time())
+        created_at = int(time.time())
         user_verification_key = uuid.uuid4().hex
         
         ic(user_verification_key)
@@ -77,7 +77,7 @@ def signup():
         db, cursor = x.db()
 
         q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, user_created_at ,None,user_verification_key,  None ))
+        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, created_at ,None,user_verification_key,  None ))
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
         db.start_transaction()
         q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
