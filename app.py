@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect
+from flask import Flask, render_template, request, jsonify, session, redirect, send_from_directory
 import uuid
 import x
 import time
@@ -22,8 +22,10 @@ app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 app.config["JWT_SECRET_KEY"] = "password"
 jwt = JWTManager(app)
-
-
+#############
+@app.route('/icons/<path:filename>')
+def get_icon(filename):
+    return send_from_directory('icons', filename)
 ##############################
 @app.get("/")
 def index():
@@ -36,7 +38,7 @@ def signup():
         user_id = uuid.uuid4().hex
         user_name = x.validate_user_name(request.json.get("user_name", ""))
         user_last_name = x.validate_user_last_name(request.json.get("user_last_name", ""))
-        user_address = x.validate_user_address(request.json.get("user_address", ""))
+        # user_address = x.validate_user_address(request.json.get("user_address", ""))
         user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
         user_email = x.validate_email(request.json.get("user_email", ""))
         user_password = x.validate_user_password(request.json.get("user_password", ""))
@@ -68,6 +70,9 @@ def signup():
         user_hashed_password = generate_password_hash(user_password)
         created_at = int(time.time())
         
+     
+       
+        
         user_verification_key = uuid.uuid4().hex
         ic(user_verification_key)
         
@@ -78,7 +83,7 @@ def signup():
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
         db.start_transaction()
         q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name,user_address, user_phone,user_email,  user_hashed_password, created_at ,None,user_verification_key,  None, None ))
+        cursor.execute(q, (user_id, user_name, user_last_name,None, user_phone,user_email,  user_hashed_password, created_at ,None,user_verification_key,  None, None ))
         
         
         q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
@@ -89,8 +94,8 @@ def signup():
         
         q = "INSERT INTO user_memberships VALUES(%s, %s, %s, %s, %s, %s, %s, %s) "
         cursor.execute(q, (user_memberships_id, membership_user_fk, membership_fk, start_date, None, "active", created_at, None))
-        
-        
+       
+    
         db.commit()
         html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
         x.send_email(user_email, html)
@@ -130,20 +135,20 @@ def signup():
 def show_signup():
     return render_template("page_signup.html")
 #################### 
-@app.get("/email-validation")
-def email_validation():
-    try:
-        user_email = x.validate_email(request.json.get("user_email",""))
-    except Exception as ex:
-        ic(ex)
+# @app.get("/email-validation")
+# def email_validation():
+#     try:
+#         user_email = x.validate_email(request.json.get("user_email",""))
+#     except Exception as ex:
+#         ic(ex)
    
-        if "Duplicate entry" in str(ex) and "user_email" in str(ex):
-            error_message = "Email already in use"
-            return jsonify({"status": "error", "message": error_message}), 400
+#         if "Duplicate entry" in str(ex) and "user_email" in str(ex):
+#             error_message = "Email already in use"
+#             return jsonify({"status": "error", "message": error_message}), 400
        
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
+#     finally:
+#         if "cursor" in locals(): cursor.close()
+#         if "db" in locals(): db.close()
         
 #################### 
 @app.post("/sign-up-email") 
@@ -170,6 +175,25 @@ def signup_email():
  finally:
     if "cursor" in locals():cursor.close()
     if "db" in locals(): db.close()
+    
+    
+################# for frontend validation
+@app.get("/email-validation")
+def email_validation():
+    try: 
+        user_email = x.validate_email(request.args.get("user_email", ""))
+        db, cursor = x.db()
+        q = "SELECT user_email FROM users WHERE user_email = %s"
+        cursor.execute(q, (user_email,))
+        row = cursor.fetchone()
+        if row:
+            return jsonify({"status": "error", "message": "Email already in use"}), 400
+        return jsonify({"status": "ok", "message": "Email is valid"}), 200
+    except Exception as ex:
+        ic(ex)
+        if "Duplicate entry" in str(ex) and "user_email" in str(ex):
+            error_message = "Email already in use"
+            return jsonify({"status": "error", "message": error_message}), 400
 
 ##############################
 @app.get("/verify/<key>")
@@ -611,13 +635,13 @@ def show_reset_password(key):
 @app.post("/reset-password")
 def reset_password():
     try:
-        password = x.validate_user_password(request.form.get("password", ""))
-        confirm_password = request.form.get("confirm-password", "").strip()
+        password = x.validate_user_password(request.json.get("password", ""))
+        confirm_password = request.json.get("confirm-password", "").strip()
 
         if confirm_password != password:
             return "Passwords do not match", 400
 
-        key = x.validate_uuid4_paranoia(request.form.get("key", ""))
+        key = x.validate_uuid4_paranoia(request.json.get("key", ""))
 
         user_hashed_password = generate_password_hash(password)
 
