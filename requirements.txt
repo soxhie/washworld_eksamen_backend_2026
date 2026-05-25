@@ -4,3 +4,5 @@ flask-cors == 6.0.2
 mysql-connector-python == 9.0.0
 icecream == 2.1.10
 Flask-JWT-Extended == 4.7.1
+gitpython==3.1.27
+bottle==0.12.23

@@ -7,6 +7,9 @@ from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash 
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
+from bottle import default_app, get, post, run
+import git
+
 
 from flask_cors import CORS
 import smtplib
@@ -22,6 +25,33 @@ app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 app.config["JWT_SECRET_KEY"] = "password"
 jwt = JWTManager(app)
+
+########## Pythonanywhere #########
+@post('/secret_url_for_git_hook')
+def git_update():
+  repo = git.Repo('.soxhie/washworld_eksamen_backend_2026')
+  origin = repo.remotes.origin
+  repo.create_head('main', origin.refs.main).set_tracking_branch(origin.refs.main).checkout()
+  origin.pull()
+  return ""
+ 
+ 
+##############################
+@get("/")
+def _():
+  return "One"
+ 
+##############################
+try:
+  import production
+  application = default_app()
+except Exception as ex:
+  print("Running local server")
+  run(host="127.0.0.1", port=80, debug=True, reloader=True)
+
+
+
+
 #############
 @app.route('/icons/<path:filename>')
 def get_icon(filename):
