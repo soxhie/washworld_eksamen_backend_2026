@@ -10,7 +10,7 @@ services:
       - 80:80 # 0 - 1024 reserved. Use any port from 1025 to 65535
     volumes:
       - .:/app
-
+ 
   mariadb:
     image: mariadb:10.6.20
     container_name: washworld_eksamen_mariadb
@@ -21,7 +21,7 @@ services:
       - mariadb_data:/var/lib/mysql
     ports:
       - 3306:3306
-
+ 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: washworld_eksamen_phpmyadmin
@@ -32,6 +32,6 @@ services:
       MYSQL_ROOT_PASSWORD: password
     ports:
       - 8080:80
-
+ 
 volumes:
   mariadb_data:
