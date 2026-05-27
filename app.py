@@ -529,7 +529,10 @@ def update_my_info():
             q = "UPDATE cars SET car_plate = %s WHERE car_user_fk = %s"
             cursor.execute(q, (data["car_plate"], user_id))
 
-       
+        # Update membership
+        if "membership_fk" in data:
+            q = "UPDATE user_memberships SET membership_fk = %s WHERE membership_user_fk = %s"
+            cursor.execute(q, (data["membership_fk"], user_id))
 
         db.commit()
 
@@ -724,7 +727,7 @@ def remove_favorite():
 
 
 ##############################
-@app.delete("/api-delete-account")
+@app.delete("/api-delete-account") #slet konto
 @jwt_required()
 def delete_account():
     try:
