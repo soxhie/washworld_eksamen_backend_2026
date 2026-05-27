@@ -678,3 +678,76 @@ def reset_password():
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
+
+
+
+##############################
+@app.post("/api-favorites") #hjertet
+@jwt_required()
+def add_favorite():
+    try:
+        user_email = get_jwt_identity()
+        location_id = request.json.get("location_id", "")
+        db, cursor = x.db()
+        q = "INSERT INTO favorites (favorite_id, user_email, location_id) VALUES (%s, %s, %s)"
+        cursor.execute(q, (uuid.uuid4().hex, user_email, location_id))
+        db.commit()
+        return jsonify({"status": "ok"}), 200
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": str(ex)}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+
+
+##############################
+@app.delete("/api-favorites") #hjertet
+@jwt_required()
+def remove_favorite():
+    try:
+        user_email = get_jwt_identity()
+        location_id = request.json.get("location_id", "")
+        db, cursor = x.db()
+        q = "DELETE FROM favorites WHERE user_email = %s AND location_id = %s"
+        cursor.execute(q, (user_email, location_id))
+        db.commit()
+        return jsonify({"status": "ok"}), 200
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": str(ex)}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+
+
+##############################
+@app.delete("/api-delete-account")
+@jwt_required()
+def delete_account():
+    try:
+        user_email = get_jwt_identity()
+        db, cursor = x.db()
+        db.start_transaction()
+        q = "SELECT user_id FROM users WHERE user_email = %s"
+        cursor.execute(q, (user_email,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+        user_id = user["user_id"]
+        cursor.execute("DELETE FROM favorites WHERE user_email = %s", (user_email,))
+        cursor.execute("DELETE FROM cars WHERE car_user_fk = %s", (user_id,))
+        cursor.execute("DELETE FROM user_memberships WHERE membership_user_fk = %s", (user_id,))
+        cursor.execute("DELETE FROM transactions WHERE transaction_user_fk = %s", (user_id,))
+        cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+        db.commit()
+        return jsonify({"status": "ok", "message": "Account deleted"}), 200
+    except Exception as ex:
+        ic(ex)
+        if "db" in locals(): db.rollback()
+        return jsonify({"status": "error", "message": str(ex)}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
