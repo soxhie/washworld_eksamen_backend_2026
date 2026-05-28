@@ -593,7 +593,73 @@ def update_my_membership():
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
-######### forgot password 
+  
+##################################################
+@app.get("/api-my-wash-history")
+@jwt_required()
+def get_my_wash_history():
+
+    try:
+
+        user_email = get_jwt_identity()
+
+        db, cursor = x.db()
+
+        q = "SELECT user_id FROM users WHERE user_email = %s LIMIT 1"
+        cursor.execute(q, (user_email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+
+        user_id = user["user_id"]
+
+        q = """
+        SELECT
+            wash.wash_id,
+            wash.created_at,
+
+            memberships.membership_name,
+            memberships.membership_description,
+            memberships.membership_price
+
+        FROM wash
+
+        LEFT JOIN user_memberships
+        ON user_memberships.membership_user_fk = wash.membership_wash_fk
+
+        LEFT JOIN memberships
+        ON memberships.membership_id = user_memberships.membership_fk
+
+        WHERE wash.user_wash_fk = %s
+
+        ORDER BY wash.created_at DESC
+        """
+
+        cursor.execute(q, (user_id,))
+        washes = cursor.fetchall()
+
+        return jsonify({
+            "status": "ok",
+            "washes": washes
+        }), 
+
+    except Exception as ex:
+
+        ic(ex)
+
+        return jsonify({
+            "status": "error",
+            "message": "System under maintenance"
+        }), 500
+
+    finally:
+
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()      
+        
+
+######### forgot password  ##################################################
 ##############################
 @app.get("/forgot-password")
 def show_forgot_password():
