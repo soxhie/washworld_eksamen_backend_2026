@@ -349,16 +349,14 @@ def get_my_info():
             users.user_name,
             users.user_last_name,
             users.user_email,
-            users.user_adress,
+            users.user_address,
             users.user_phone,
 
             cars.car_plate,
 
-            payment_gateway.payment_gateway_name,
+            payment_gateway.payment_gateway_name
 
-            memberships.membership_name,
-            memberships.membership_description,
-            memberships.membership_price
+           
             
 
         FROM users
@@ -372,19 +370,13 @@ def get_my_info():
         LEFT JOIN payment_gateway
         ON payment_gateway.payment_gateway_id = transactions.transaction_gateway_fk
 
-        LEFT JOIN user_memberships
-        ON user_memberships.membership_user_fk = users.user_id
-
-        LEFT JOIN memberships
-        ON memberships.membership_id = user_memberships.membership_fk
+       
 
         WHERE users.user_email = %s
 
         LIMIT 1
         """
-#############
-######remove memberships, user_membership Join, make a seperate one, where the user can see their membership
-#########        
+       
         cursor.execute(q, (user_email,))
         user = cursor.fetchone()
 
@@ -490,7 +482,7 @@ def update_my_info():
         user = cursor.fetchone()
 
         if not user:
-            return jsonify({"status": "error", "message": "User not found"}), 404
+            return jsonify({"status": "error", "message": "User not found"}), 400
 
         user_id = user["user_id"]
 
@@ -521,7 +513,7 @@ def update_my_info():
             cursor.execute(q, (data["transaction_gateway_fk"], user_id))
             
         if "user_address" in data:
-            q = "UPDATE users SET user_adress = %s WHERE user_id = %s"
+            q = "UPDATE users SET user_address = %s WHERE user_id = %s"
             cursor.execute(q, (data["user_address"], user_id))
 
         # Update cars table
@@ -549,8 +541,125 @@ def update_my_info():
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
+#################
+@app.patch("/api-update-my-membership")
+@jwt_required()
+def update_my_membership():
+    try:
+        user_email = get_jwt_identity()
+        data = request.json
 
-######### forgot password 
+        db, cursor = x.db()
+
+        q = "SELECT user_id FROM users WHERE user_email = %s LIMIT 1"
+        cursor.execute(q, (user_email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 400
+
+        user_id = user["user_id"]
+
+        if "membership_fk" in data:
+            # Check the membership being requested actually exists
+            q = "SELECT membership_id FROM memberships WHERE membership_id = %s LIMIT 1"
+            cursor.execute(q, (data["membership_fk"],))
+            membership = cursor.fetchone()
+
+            if not membership:
+                return jsonify({"status": "error", "message": "Membership not found"}), 400
+
+            q = """
+            UPDATE user_memberships
+            SET membership_fk = %s
+            WHERE membership_user_fk = %s
+            """
+            cursor.execute(q, (data["membership_fk"], user_id))
+
+        db.commit()
+
+        return jsonify({
+            "status": "ok",
+            "message": "Membership updated"
+        }), 200
+
+    except Exception as ex:
+        ic(ex)
+        return jsonify({
+            "status": "error",
+            "message": str(ex)
+        }), 500
+
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+  
+##################################################
+@app.get("/api-my-wash-history")
+@jwt_required()
+def get_my_wash_history():
+
+    try:
+
+        user_email = get_jwt_identity()
+
+        db, cursor = x.db()
+
+        q = "SELECT user_id FROM users WHERE user_email = %s LIMIT 1"
+        cursor.execute(q, (user_email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+
+        user_id = user["user_id"]
+
+        q = """
+        SELECT
+            wash.wash_id,
+            wash.created_at,
+
+            memberships.membership_name,
+            memberships.membership_description,
+            memberships.membership_price
+
+        FROM wash
+
+        LEFT JOIN user_memberships
+        ON user_memberships.membership_user_fk = wash.membership_wash_fk
+
+        LEFT JOIN memberships
+        ON memberships.membership_id = user_memberships.membership_fk
+
+        WHERE wash.user_wash_fk = %s
+
+        ORDER BY wash.created_at DESC
+        """
+
+        cursor.execute(q, (user_id,))
+        washes = cursor.fetchall()
+
+        return jsonify({
+            "status": "ok",
+            "washes": washes
+        }), 
+
+    except Exception as ex:
+
+        ic(ex)
+
+        return jsonify({
+            "status": "error",
+            "message": "System under maintenance"
+        }), 500
+
+    finally:
+
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()      
+        
+
+######### forgot password  ##################################################
 ##############################
 @app.get("/forgot-password")
 def show_forgot_password():

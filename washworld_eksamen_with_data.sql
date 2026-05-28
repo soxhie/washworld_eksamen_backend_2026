@@ -52,7 +52,7 @@ INSERT INTO `cars` (`car_id`, `car_plate`, `car_user_fk`, `created_at`, `updated
 CREATE TABLE `locations` (
   `location_id` char(32) NOT NULL,
   `location_name` varchar(100) NOT NULL,
-  `location_adress` varchar(199) NOT NULL,
+  `location_address` varchar(199) NOT NULL,
   `location_city` varchar(100) NOT NULL,
   `location_postal_code` varchar(20) NOT NULL,
   `is_active` tinyint(4) NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE `users` (
   `user_id` char(32) NOT NULL,
   `user_name` varchar(20) NOT NULL,
   `user_last_name` varchar(20) NOT NULL,
-  `user_adress` varchar(199) NOT NULL,
+  `user_address` varchar(199) NOT NULL,
   `user_phone` bigint(20) NOT NULL,
   `user_email` varchar(50) NOT NULL,
   `user_password` varchar(255) NOT NULL,
@@ -158,7 +158,7 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `user_name`, `user_last_name`, `user_adress`, `user_phone`, `user_email`, `user_password`, `created_at`, `deleted_at`, `user_verification_key`, `user_verified_at`) VALUES
+INSERT INTO `users` (`user_id`, `user_name`, `user_last_name`, `user_address`, `user_phone`, `user_email`, `user_password`, `created_at`, `deleted_at`, `user_verification_key`, `user_verified_at`) VALUES
 ('75b6b906024e4f49a214fbade6439f68', 'Sophie', 'Hjelm', '12 Main Street, Copenhagen, DK 2200', 12345678, 'sophie@hjelm.name', 'scrypt:32768:8:1$msbiixlzY23ZlDYR$67bf6340ee0877e165ee0750b68676a96a16a881ed75b451789082b90d8df7e940410b96f6afde4b41dde845119c7ef4e24340315370edbf11ca749178e4585b', 1778584500, NULL, 'ede41751a6474e56a27c096f49c80464', NULL),
 ('e5384bce264e4ed58f13694621aaef50', 'Sophie', 'Hjelm', '12 Main Street, Copenhagen, DK 2400', 12345678, 'sophiehjelm0@gmail.com', 'scrypt:32768:8:1$OnSN0mkVPPJXRTmK$fa96a226f87ee17cf5dded5b82803240fc6ab6548575da563c31f9312096b147b8b5556d24ec5fe90a66bcbfefd911d73a82d3f8dd3a3a6a831a97b077dbf6e7', 1778513887, NULL, '7b454abb4da946abad610ee084102840', NULL);
 

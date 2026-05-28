@@ -57,7 +57,7 @@ INSERT INTO `cars` (`car_id`, `car_plate`, `car_user_fk`, `created_at`, `updated
 CREATE TABLE `locations` (
   `location_id` char(32) NOT NULL,
   `location_name` varchar(100) NOT NULL,
-  `location_adress` varchar(199) NOT NULL,
+  `location_address` varchar(199) NOT NULL,
   `location_city` varchar(100) NOT NULL,
   `location_postal_code` varchar(20) NOT NULL,
   `is_active` tinyint(4) NOT NULL,
@@ -150,7 +150,7 @@ CREATE TABLE `users` (
   `user_id` char(32) NOT NULL,
   `user_name` varchar(20) NOT NULL,
   `user_last_name` varchar(20) NOT NULL,
-  `user_adress` varchar(199) DEFAULT NULL,
+  `user_address` varchar(199) DEFAULT NULL,
   `user_phone` varchar(20) NOT NULL,
   `user_email` varchar(50) NOT NULL,
   `user_password` varchar(255) NOT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `user_name`, `user_last_name`, `user_adress`, `user_phone`, `user_email`, `user_password`, `created_at`, `deleted_at`, `user_verification_key`, `user_verified_at`, `user_reset_password_key`) VALUES
+INSERT INTO `users` (`user_id`, `user_name`, `user_last_name`, `user_address`, `user_phone`, `user_email`, `user_password`, `created_at`, `deleted_at`, `user_verification_key`, `user_verified_at`, `user_reset_password_key`) VALUES
 ('003dea0d714e42c8b6416af02a92a631', 'PasswordTest', 'Test', '12 Main Street, Copenhagen, DK 2200', '99999999', 'sophiehjelm010203@gmail.com', 'scrypt:32768:8:1$xwhkTq3WNOd1zTJ1$d5752a9457d489dc1de5f2a089f3ac845e337293710b93f996916f6d8a228b4b6bb6c2db13c581798c82031a8b9629087f2f89c39147131dcc3070ebc085f07f', 1778761898, NULL, '837ffe541def4aeaa3a7da228475e7bb', 1778761906, 'e290917b89d149f8b94d5a77c87aa0f5275ca3e6bdb946ec900d7cb5406b1466'),
 ('416dab33ad6b4b099e694c668ea0a13a', 'svp', 'work', NULL, '22334455', 'sophie@hjelm.name', 'scrypt:32768:8:1$SHRyHwSLwFAZCJ7D$2911a89888109f917fd24dc353ae1fac3d982e463c04a5b5321804d4ae31ff0a96c270938304022444ec4d36ff094c6f9b73ad16c1596f58293fe0043d2ffbf9', 1779436369, NULL, '79092bd38dec4ead9eecab5875184628', 1779436451, NULL),
 ('463c73471b6640b19b9eb851b66f2f5c', 'PasswordTest', 'Test', '12 Main Street, Copenhagen, DK 2200', '12345678', 'testtoday@gmail.com', 'scrypt:32768:8:1$PdBAuEpAptj1i21B$c424c265b234f9399b0324e7113867a1130f88b9b57b097f9b2320c60fbeb82e597e4a3ae2fc2ee93e0c506f354912f51ce993deb070c58c02ac4b63f274a923', 1779306365, NULL, '09981dde73894d4c8dc2ee67445a4aa7', NULL, NULL),
