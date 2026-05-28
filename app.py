@@ -354,7 +354,7 @@ def get_my_info():
 
             cars.car_plate,
 
-            payment_gateway.payment_gateway_name,
+            payment_gateway.payment_gateway_name
 
            
             
