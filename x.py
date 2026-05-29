@@ -75,7 +75,7 @@ REGEX_USER_ADDRESS = "^[0-9]+\s[a-zA-ZæøåÆØÅ0-9\s]+,\s[a-zA-ZæøåÆØÅ\
 def validate_user_address(user_address):
     user_address = user_address.strip()
     if not re.match(REGEX_USER_ADDRESS, user_address):
-        raise Exception("company_exception user_adress")
+        raise Exception("company_exception user_address")
     return user_address
 ##############################
 REGEX_USER_PHONE = "^(\+45)?\s?(\d{2}\s?){4}$"
