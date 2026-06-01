@@ -194,6 +194,10 @@ def email_validation():
         if "Duplicate entry" in str(ex) and "user_email" in str(ex):
             error_message = "Email already in use"
             return jsonify({"status": "error", "message": error_message}), 400
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
 
 ##############################
 @app.get("/verify/<key>")
