@@ -47,8 +47,6 @@ def signup():
         car_id= uuid.uuid4().hex
         car_plate = request.json.get("car_plate", "")
         car_user_fk = user_id
-        #PAYMENT_GATEWAY DATA
-        # payment_id = uuid.uuid4().hex
         # payment_name = request.json.get("payment_name", "")
         # user_payment_fk = user_id
         
@@ -82,8 +80,8 @@ def signup():
         db, cursor = x.db()
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
         db.start_transaction()
-        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name,None, user_phone,user_email,  user_hashed_password, created_at ,None,user_verification_key,  None, None ))
+        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (user_id, user_name, user_last_name, user_phone, user_email, user_hashed_password, created_at, None, user_verification_key, None, None))
         
         
         q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
@@ -111,6 +109,9 @@ def signup():
     
         if "company_exception user_last_name" in str(ex):
             return jsonify({ "status":"error", "message":f"user last name {x.USER_LAST_NAME_MIN} to {x.USER_LAST_NAME_MAX} characters"}), 400
+
+        if "company_exception user_address" in str(ex):
+            return jsonify({"status": "error", "message": f"user address {x.USER_ADDRESS_MIN} to {x.USER_ADDRESS_MAX} characters"}), 400
     
         if "company_exception user_email" in str(ex):
             error_message = "email invalid"
@@ -353,12 +354,15 @@ def get_my_info():
             users.user_name,
             users.user_last_name,
             users.user_email,
-            users.user_address,
+            
             users.user_phone,
 
             cars.car_plate,
 
-            payment_gateway.payment_gateway_name
+            payment_gateway.payment_gateway_name,
+            memberships.membership_name,
+            memberships.membership_description,
+            memberships.membership_price
 
            
             
@@ -369,10 +373,28 @@ def get_my_info():
         ON cars.car_user_fk = users.user_id
 
         LEFT JOIN transactions
-        ON transactions.transaction_user_fk = users.user_id
+        ON transactions.transaction_id = (
+            SELECT t.transaction_id
+            FROM transactions t
+            WHERE t.transaction_user_fk = users.user_id
+            ORDER BY t.created_at DESC
+            LIMIT 1
+        )
 
         LEFT JOIN payment_gateway
         ON payment_gateway.payment_gateway_id = transactions.transaction_gateway_fk
+
+        LEFT JOIN user_memberships
+        ON user_memberships.user_memberships_id = (
+            SELECT um.user_memberships_id
+            FROM user_memberships um
+            WHERE um.membership_user_fk = users.user_id
+            ORDER BY (um.status = 'active') DESC, um.created_at DESC
+            LIMIT 1
+        )
+
+        LEFT JOIN memberships
+        ON memberships.membership_id = user_memberships.membership_fk
 
        
 
@@ -432,7 +454,13 @@ def get_my_membership():
         FROM users
 
         LEFT JOIN user_memberships
-        ON user_memberships.membership_user_fk = users.user_id
+        ON user_memberships.user_memberships_id = (
+            SELECT um.user_memberships_id
+            FROM user_memberships um
+            WHERE um.membership_user_fk = users.user_id
+            ORDER BY (um.status = 'active') DESC, um.created_at DESC
+            LIMIT 1
+        )
 
         LEFT JOIN memberships
         ON memberships.membership_id = user_memberships.membership_fk

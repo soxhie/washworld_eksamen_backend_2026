@@ -71,7 +71,9 @@ def validate_email( email ):
         raise Exception("company_exception email")
     return email
 ##############################
-REGEX_USER_ADDRESS = "^[0-9]+\s[a-zA-ZæøåÆØÅ0-9\s]+,\s[a-zA-ZæøåÆØÅ\s]+,\s[A-Z]{2}\s[0-9]{4,6}$"
+USER_ADDRESS_MIN = 8
+USER_ADDRESS_MAX = 200
+REGEX_USER_ADDRESS =f"^.{{{USER_ADDRESS_MIN},{USER_ADDRESS_MAX}}}$"
 def validate_user_address(user_address):
     user_address = user_address.strip()
     if not re.match(REGEX_USER_ADDRESS, user_address):
