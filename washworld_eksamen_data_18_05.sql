@@ -53,7 +53,7 @@ INSERT INTO `cars` (`car_id`, `car_plate`, `car_user_fk`, `created_at`, `updated
 CREATE TABLE `locations` (
   `location_id` char(32) NOT NULL,
   `location_name` varchar(100) NOT NULL,
-  `location_adress` varchar(199) NOT NULL,
+  `location_address` varchar(199) NOT NULL,
   `location_city` varchar(100) NOT NULL,
   `location_postal_code` varchar(20) NOT NULL,
   `is_active` tinyint(4) NOT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE `users` (
   `user_id` char(32) NOT NULL,
   `user_name` varchar(20) NOT NULL,
   `user_last_name` varchar(20) NOT NULL,
-  `user_adress` varchar(199) NOT NULL,
+  `user_address` varchar(199) NOT NULL,
   `user_phone` bigint(20) NOT NULL,
   `user_email` varchar(50) NOT NULL,
   `user_password` varchar(255) NOT NULL,
@@ -180,7 +180,7 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `user_name`, `user_last_name`, `user_adress`, `user_phone`, `user_email`, `user_password`, `created_at`, `deleted_at`, `user_verification_key`, `user_verified_at`, `user_reset_password_key`) VALUES
+INSERT INTO `users` (`user_id`, `user_name`, `user_last_name`, `user_address`, `user_phone`, `user_email`, `user_password`, `created_at`, `deleted_at`, `user_verification_key`, `user_verified_at`, `user_reset_password_key`) VALUES
 ('003dea0d714e42c8b6416af02a92a631', 'PasswordTest', 'Test', '12 Main Street, Copenhagen, DK 2200', 12345678, 'sophiehjelm010203@gmail.com', 'scrypt:32768:8:1$xwhkTq3WNOd1zTJ1$d5752a9457d489dc1de5f2a089f3ac845e337293710b93f996916f6d8a228b4b6bb6c2db13c581798c82031a8b9629087f2f89c39147131dcc3070ebc085f07f', 1778761898, NULL, '837ffe541def4aeaa3a7da228475e7bb', 1778761906, NULL),
 ('fd88d38fb4804b9093cdb7e3fe54ed17', 'Test 5', 'Test 5', '12 Main Street, Copenhagen, DK 2200', 12345678, 'test@gmail.com', 'scrypt:32768:8:1$MTFzhXFmGXVefiIq$363f44543c3f26a12bd128478373eddc5122e3eeeee6b3d30cc026784426673067e8b1ec9a3895bb3905c9ebdf10e36313e70fd034c14fc1be3c9134b5288d5a', 1778680487, NULL, 'aea4fb0dfc414f23acdcf0e286a932ed', NULL, NULL);
 
