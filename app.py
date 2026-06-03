@@ -216,10 +216,9 @@ def verify_account(key):
         cursor.execute(q, (user_verified_at, key))
         db.commit()
         if cursor.rowcount == 0:
-            html = render_template("email_already_verified.html")
-            return html
-        html = render_template("email_verification_success.html")
-        return html
+            return "user already verified"
+
+        return f"Welcome to the system, you are verified"
     except Exception as ex: 
         ic(ex)
         if "company_exception uuid4 invalid" in str(ex):
