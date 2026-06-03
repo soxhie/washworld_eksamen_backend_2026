@@ -42,7 +42,7 @@ def signup():
         user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
         user_email = x.validate_email(request.json.get("user_email", ""))
         user_password = x.validate_user_password(request.json.get("user_password", ""))
-        
+        user_pin_code = x.validate_user_pin_code(request.json.get("user_pin_code",""))
         #CAR DATA
         car_id= uuid.uuid4().hex
         car_plate = request.json.get("car_plate", "")
@@ -66,6 +66,7 @@ def signup():
 
         #USERS DATA
         user_hashed_password = generate_password_hash(user_password)
+        user_hashed_pin_code = generate_password_hash(user_pin_code)
         created_at = int(time.time())
         
      
@@ -80,8 +81,8 @@ def signup():
         db, cursor = x.db()
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
         db.start_transaction()
-        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name, user_phone, user_email, user_hashed_password, created_at, None, user_verification_key, None, None))
+        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (user_id, user_name, user_last_name, user_phone, user_email, user_hashed_password,user_hashed_pin_code, created_at, None, user_verification_key, None, None))
         
         
         q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
@@ -97,7 +98,11 @@ def signup():
         db.commit()
         html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
         x.send_email(user_email, html)
-        return jsonify({"status": "ok", "message": "Signup successful"})
+        return jsonify({
+            "status": "ok",
+            "message": "Signup successful",
+            "verification_key": user_verification_key
+        })
         
     except Exception as ex:
         ic(ex)
@@ -215,15 +220,47 @@ def verify_account(key):
         cursor.execute(q, (user_verified_at, key))
         db.commit()
         if cursor.rowcount == 0:
-            return "user already verified"
-
-        return f"Welcome to the system, you are verified"
+            html = render_template("email_already_verified.html")
+            return html
+        html = render_template("email_verification_success.html")
+        return html
     except Exception as ex: 
         ic(ex)
         if "company_exception uuid4 invalid" in str(ex):
             return "Invalid key", 400
 
         return str(ex), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+
+##############################
+@app.get("/api-verification-status/<key>")
+def verification_status(key):
+    try:
+        key = x.validate_uuid4(key)
+        db, cursor = x.db()
+
+        q = "SELECT user_verified_at FROM users WHERE user_verification_key = %s LIMIT 1"
+        cursor.execute(q, (key,))
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+
+        return jsonify({
+            "status": "ok",
+            "verified": bool(row["user_verified_at"])
+        }), 200
+
+    except Exception as ex:
+        ic(ex)
+        if "company_exception uuid4 invalid" in str(ex):
+            return jsonify({"status": "error", "message": "Invalid key"}), 400
+
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
@@ -259,10 +296,6 @@ def get_memberships():
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
-
-
-
-
 ######################## LOGIN
 @app.get("/login")
 def show_login():
@@ -303,6 +336,7 @@ def login():
         
         
         user.pop("user_password")
+        user.pop("user_pin_code", None)
         session["user"] = user
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
         x.send_email(user_email, html)
@@ -322,6 +356,47 @@ def login():
     
     finally:
         if "cursor" in locals():cursor.close()
+        if "db" in locals(): db.close()
+
+######################## PIN LOGIN (session expired)
+@app.post("/api-login-pin")
+def login_pin():
+    try:
+        user_email = x.validate_email(request.json.get("user_email", ""))
+        user_pin_code = x.validate_user_pin_code(request.json.get("user_pin_code", ""))
+
+        db, cursor = x.db()
+        q = "SELECT * FROM users WHERE user_email = %s LIMIT 1"
+        cursor.execute(q, (user_email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"status": "error", "message": "User doesn't exist"}), 400
+
+        if not check_password_hash(user["user_pin_code"], user_pin_code):
+            return jsonify({"status": "error", "message": "Invalid PIN"}), 400
+
+        access_token = create_access_token(identity=str(user["user_email"]))
+
+        user.pop("user_password", None)
+        user.pop("user_pin_code", None)
+        session["user"] = user
+
+        return jsonify({"status": "ok", "message": "Login successful", "user": user, "access_token": access_token}), 200
+
+    except Exception as ex:
+        ic(ex)
+
+        if "company_exception user_email" in str(ex):
+            return jsonify({"status": "error", "message": "Invalid email"}), 400
+
+        if "company_exception user_pin_code" in str(ex):
+            return jsonify({"status": "error", "message": f"PIN must be {x.USER_PIN_CODE_MIN} digits"}), 400
+
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+
+    finally:
+        if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
 ################# this was for testing, DELETE
