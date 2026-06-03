@@ -94,6 +94,14 @@ def validate_user_password( password ):
     if not re.match(REGEX_USER_PASSWORD, password):
         raise Exception("company_exception user_password")
     return password
+##############################
+USER_PIN_CODE_MIN = 4
+USER_PIN_CODE_MAX = 4
+REGEX_USER_PIN_CODE = f"^.{{{USER_PIN_CODE_MIN},{USER_PIN_CODE_MAX}}}$"
+def validate_user_pin_code( pin_code ):
+    if not re.match(REGEX_USER_PIN_CODE, pin_code):
+        raise Exception("company_exception user_pin_code")
+    return pin_code
 
 # REGEX_USER_PASSWORD = f"^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).{{8,}}$"
 # def validate_user_password( password ):
