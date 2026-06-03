@@ -228,8 +228,7 @@ def verify_account(key):
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
         
-        
-        
+
 ############################ get payment method (for signup )
 @app.get("/api-payment-gateways")
 def get_payment_gateways():
