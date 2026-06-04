@@ -81,8 +81,8 @@ def signup():
         db, cursor = x.db()
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
         db.start_transaction()
-        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name, user_phone, user_email, user_hashed_password,user_hashed_pin_code, created_at, None, user_verification_key, None, None))
+        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (user_id, user_name, user_last_name, user_phone, user_email, user_hashed_password, created_at, None, user_verification_key, None, None))
         
         
         q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
