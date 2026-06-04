@@ -553,9 +553,9 @@ def update_my_info():
             """
             cursor.execute(q, (data["transaction_gateway_fk"], user_id))
             
-        if "user_address" in data:
-            q = "UPDATE users SET user_address = %s WHERE user_id = %s"
-            cursor.execute(q, (data["user_address"], user_id))
+        # if "user_address" in data:
+        #     q = "UPDATE users SET user_address = %s WHERE user_id = %s"
+        #     cursor.execute(q, (data["user_address"], user_id))
 
         # Update cars table
         if "car_plate" in data:
@@ -788,13 +788,16 @@ def show_reset_password(key):
 @app.post("/reset-password")
 def reset_password():
     try:
-        password = x.validate_user_password(request.json.get("password", ""))
-        confirm_password = request.json.get("confirm-password", "").strip()
+        # password = x.validate_user_password(request.json.get("password", ""))
+        password = x.validate_user_password(request.form.get("password", ""))
+        # confirm_password = request.json.get("confirm-password", "").strip()
+        confirm_password = request.form.get("confirm-password", "").strip()
 
         if confirm_password != password:
             return "Passwords do not match", 400
 
-        key = x.validate_uuid4_paranoia(request.json.get("key", ""))
+        # key = x.validate_uuid4_paranoia(request.json.get("key", ""))
+        key = x.validate_uuid4_paranoia(request.form.get("key", ""))
 
         user_hashed_password = generate_password_hash(password)
 
