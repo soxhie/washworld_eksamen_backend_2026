@@ -834,6 +834,26 @@ def reset_password():
 
 
 
+
+############################## #hjertet
+# Returns all favorite location ids for the logged in user
+@app.get("/api-favorites")
+@jwt_required()
+def get_favorites():
+    try:
+        user_email = get_jwt_identity()
+        db, cursor = x.db()
+        cursor.execute("SELECT location_id FROM favorites WHERE user_email = %s", (user_email,))
+        rows = cursor.fetchall()
+        location_ids = [row["location_id"] for row in rows]
+        return jsonify({"status": "ok", "favorites": location_ids}), 200
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": str(ex)}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
 ##############################
 @app.post("/api-favorites") #hjertet
 @jwt_required()
