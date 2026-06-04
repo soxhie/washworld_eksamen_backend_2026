@@ -98,7 +98,7 @@ def signup():
         db.commit()
         html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
         x.send_email(user_email, html)
-        return jsonify({"status": "ok", "message": "Signup successful"})
+        return jsonify({"status": "ok", "message": "Signup successful", "verification_key": user_verification_key})
         
     except Exception as ex:
         ic(ex)
@@ -213,7 +213,6 @@ def verify_account(key):
         db.commit()
         if cursor.rowcount == 0:
             return "user already verified"
-
         return f"Welcome to the system, you are verified"
     except Exception as ex: 
         ic(ex)
@@ -225,6 +224,23 @@ def verify_account(key):
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
         
+
+############################ ck added # Checks if a user has clicked the verification link in their email
+@app.get("/api-verification-status/<key>")
+def verification_status(key):
+    try:
+        db, cursor = x.db()
+        cursor.execute("SELECT user_verified_at FROM users WHERE user_verification_key = %s", (key,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"status": "error", "message": "Key not found"}), 404
+        verified = user["user_verified_at"] is not None
+        return jsonify({"status": "ok", "verified": verified})
+    except Exception as ex:
+        return jsonify({"status": "error", "message": str(ex)}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
 
 ############################ get payment method (for signup )
 @app.get("/api-payment-gateways")
