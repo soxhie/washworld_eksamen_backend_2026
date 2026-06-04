@@ -429,6 +429,7 @@ def get_my_info():
             cars.car_plate,
 
             payment_gateway.payment_gateway_name,
+            payment_gateway.payment_gateway_id, # ck added
             memberships.membership_name,
             memberships.membership_description,
             memberships.membership_price
