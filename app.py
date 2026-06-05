@@ -98,11 +98,7 @@ def signup():
         db.commit()
         html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
         x.send_email(user_email, html)
-        return jsonify({
-            "status": "ok",
-            "message": "Signup successful",
-            "verification_key": user_verification_key,
-        })
+        return jsonify({"status": "ok", "message": "Signup successful", "verification_key": user_verification_key})
         
     except Exception as ex:
         ic(ex)
@@ -217,7 +213,6 @@ def verify_account(key):
         db.commit()
         if cursor.rowcount == 0:
             return "user already verified"
-
         return f"Welcome to the system, you are verified"
     except Exception as ex: 
         ic(ex)
@@ -254,6 +249,23 @@ def verification_status(key):
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
         
+
+############################ ck added # Checks if a user has clicked the verification link in their email
+@app.get("/api-verification-status/<key>")
+def verification_status(key):
+    try:
+        db, cursor = x.db()
+        cursor.execute("SELECT user_verified_at FROM users WHERE user_verification_key = %s", (key,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"status": "error", "message": "Key not found"}), 404
+        verified = user["user_verified_at"] is not None
+        return jsonify({"status": "ok", "verified": verified})
+    except Exception as ex:
+        return jsonify({"status": "error", "message": str(ex)}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
 
 ############################ get payment method (for signup )
 @app.get("/api-payment-gateways")
@@ -381,6 +393,7 @@ def get_my_info():
             cars.car_plate,
 
             payment_gateway.payment_gateway_name,
+            payment_gateway.payment_gateway_id, # ck added
             memberships.membership_name,
             memberships.membership_description,
             memberships.membership_price
@@ -565,16 +578,19 @@ def update_my_info():
             """
             cursor.execute(q, (data["transaction_gateway_fk"], user_id))
             
-        if "user_address" in data:
-            q = "UPDATE users SET user_address = %s WHERE user_id = %s"
-            cursor.execute(q, (data["user_address"], user_id))
+        # if "user_address" in data:
+        #     q = "UPDATE users SET user_address = %s WHERE user_id = %s"
+        #     cursor.execute(q, (data["user_address"], user_id))
 
         # Update cars table
         if "car_plate" in data:
             q = "UPDATE cars SET car_plate = %s WHERE car_user_fk = %s"
             cursor.execute(q, (data["car_plate"], user_id))
 
-       
+        # Update membership
+        if "membership_fk" in data:
+            q = "UPDATE user_memberships SET membership_fk = %s WHERE membership_user_fk = %s"
+            cursor.execute(q, (data["membership_fk"], user_id))
 
         db.commit()
 
@@ -797,13 +813,16 @@ def show_reset_password(key):
 @app.post("/reset-password")
 def reset_password():
     try:
-        password = x.validate_user_password(request.json.get("password", ""))
-        confirm_password = request.json.get("confirm-password", "").strip()
+        # password = x.validate_user_password(request.json.get("password", ""))
+        password = x.validate_user_password(request.form.get("password", ""))
+        # confirm_password = request.json.get("confirm-password", "").strip()
+        confirm_password = request.form.get("confirm-password", "").strip()
 
         if confirm_password != password:
             return "Passwords do not match", 400
 
-        key = x.validate_uuid4_paranoia(request.json.get("key", ""))
+        # key = x.validate_uuid4_paranoia(request.json.get("key", ""))
+        key = x.validate_uuid4_paranoia(request.form.get("key", ""))
 
         user_hashed_password = generate_password_hash(password)
 
@@ -842,6 +861,26 @@ def reset_password():
         if "db" in locals(): db.close()
 
 
+
+
+############################## #hjertet
+# Returns all favorite location ids for the logged in user
+@app.get("/api-favorites")
+@jwt_required()
+def get_favorites():
+    try:
+        user_email = get_jwt_identity()
+        db, cursor = x.db()
+        cursor.execute("SELECT location_id FROM favorites WHERE user_email = %s", (user_email,))
+        rows = cursor.fetchall()
+        location_ids = [row["location_id"] for row in rows]
+        return jsonify({"status": "ok", "favorites": location_ids}), 200
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": str(ex)}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
 
 ##############################
 @app.post("/api-favorites") #hjertet
@@ -886,7 +925,7 @@ def remove_favorite():
 
 
 ##############################
-@app.delete("/api-delete-account")
+@app.delete("/api-delete-account") #slet konto
 @jwt_required()
 def delete_account():
     try:
