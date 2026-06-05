@@ -98,7 +98,11 @@ def signup():
         db.commit()
         html= render_template("___sign_up_email.html", user_verification_key = user_verification_key)
         x.send_email(user_email, html)
-        return jsonify({"status": "ok", "message": "Signup successful"})
+        return jsonify({
+            "status": "ok",
+            "message": "Signup successful",
+            "verification_key": user_verification_key,
+        })
         
     except Exception as ex:
         ic(ex)
@@ -221,6 +225,31 @@ def verify_account(key):
             return "Invalid key", 400
 
         return str(ex), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+
+############################## verification status for frontend polling
+@app.get("/api-verification-status/<key>")
+def verification_status(key):
+    try:
+        key = x.validate_uuid4(key)
+        db, cursor = x.db()
+        q = "SELECT user_verified_at FROM users WHERE user_verification_key = %s LIMIT 1"
+        cursor.execute(q, (key,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"status": "error", "message": "Invalid verification key"}), 404
+
+        verified_at = user.get("user_verified_at")
+        return jsonify({"status": "ok", "verified": bool(verified_at)}), 200
+    except Exception as ex:
+        ic(ex)
+        if "company_exception uuid4 invalid" in str(ex):
+            return jsonify({"status": "error", "message": "Invalid verification key"}), 400
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
