@@ -38,7 +38,7 @@ def signup():
         user_id = uuid.uuid4().hex
         user_name = x.validate_user_name(request.json.get("user_name", ""))
         user_last_name = x.validate_user_last_name(request.json.get("user_last_name", ""))
-        # user_address = x.validate_user_address(request.json.get("user_address", ""))
+        user_address = x.validate_user_address(request.json.get("user_address", ""))
         user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
         user_email = x.validate_email(request.json.get("user_email", ""))
         user_password = x.validate_user_password(request.json.get("user_password", ""))
@@ -81,8 +81,8 @@ def signup():
         db, cursor = x.db()
         # When there are 2 or more updates, deletes and/or inserts, you must use a transaction
         db.start_transaction()
-        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        cursor.execute(q, (user_id, user_name, user_last_name, user_phone, user_email, user_hashed_password, created_at, None, user_verification_key, None, None))
+        q = "INSERT INTO users VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        cursor.execute(q, (user_id, user_name, user_last_name, user_phone, user_email, user_hashed_password,user_address, created_at, None, user_verification_key, None, None))
         
         
         q = "INSERT INTO cars VALUES(%s, %s, %s, %s, %s, %s) "
@@ -132,26 +132,6 @@ def signup():
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
-##############################
-@app.get("/signup")
-def show_signup():
-    return render_template("page_signup.html")
-#################### 
-# @app.get("/email-validation")
-# def email_validation():
-#     try:
-#         user_email = x.validate_email(request.json.get("user_email",""))
-#     except Exception as ex:
-#         ic(ex)
-   
-#         if "Duplicate entry" in str(ex) and "user_email" in str(ex):
-#             error_message = "Email already in use"
-#             return jsonify({"status": "error", "message": error_message}), 400
-       
-#     finally:
-#         if "cursor" in locals(): cursor.close()
-#         if "db" in locals(): db.close()
-        
 #################### 
 @app.post("/sign-up-email") 
 def signup_email():
@@ -170,7 +150,7 @@ def signup_email():
 
     html = render_template("___sign_up_email.html", user_verification_key = user_verification_key )
     x.send_email(html)
-    return "jjj"
+    return jsonify({"status": "ok", "message":"email sent "})
  except Exception as ex:
     ic(ex)
     return str(ex), 500
@@ -178,12 +158,15 @@ def signup_email():
     if "cursor" in locals():cursor.close()
     if "db" in locals(): db.close()
     
-    
-################# for frontend validation
-@app.get("/email-validation")
+####################     
+@app.post("/email-validation")
 def email_validation():
-    try: 
-        user_email = x.validate_email(request.args.get("user_email", ""))
+    try:
+        user_email = request.json.get("user_email", "")
+        if not user_email:
+            return jsonify({"status": "error", "message": "Email is required"}), 400
+
+        user_email = x.validate_email(user_email)
         db, cursor = x.db()
         q = "SELECT user_email FROM users WHERE user_email = %s"
         cursor.execute(q, (user_email,))
@@ -193,10 +176,17 @@ def email_validation():
         return jsonify({"status": "ok", "message": "Email is valid"}), 200
     except Exception as ex:
         ic(ex)
+        if "company_exception email" in str(ex):
+            return jsonify({"status": "error", "message": "Email invalid"}), 400
         if "Duplicate entry" in str(ex) and "user_email" in str(ex):
             error_message = "Email already in use"
             return jsonify({"status": "error", "message": error_message}), 400
-
+        
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+ 
 ##############################
 @app.get("/verify/<key>")
 def verify_account(key):
@@ -212,43 +202,18 @@ def verify_account(key):
         cursor.execute(q, (user_verified_at, key))
         db.commit()
         if cursor.rowcount == 0:
-            return "user already verified"
-        return f"Welcome to the system, you are verified"
+            return jsonify({"status":"error","message":"user already exists"})
+        return jsonify({"status":"ok","message":"Welcome to the system you are verified !"})
+        
     except Exception as ex: 
         ic(ex)
         if "company_exception uuid4 invalid" in str(ex):
-            return "Invalid key", 400
+            return jsonify({"status": "error", "message": "Invalid"}), 400
 
-        return str(ex), 500
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
-
-
-############################## verification status for frontend polling
-@app.get("/api-verification-status/<key>")
-def verification_status(key):
-    try:
-        key = x.validate_uuid4(key)
-        db, cursor = x.db()
-        q = "SELECT user_verified_at FROM users WHERE user_verification_key = %s LIMIT 1"
-        cursor.execute(q, (key,))
-        user = cursor.fetchone()
-
-        if not user:
-            return jsonify({"status": "error", "message": "Invalid verification key"}), 404
-
-        verified_at = user.get("user_verified_at")
-        return jsonify({"status": "ok", "verified": bool(verified_at)}), 200
-    except Exception as ex:
-        ic(ex)
-        if "company_exception uuid4 invalid" in str(ex):
-            return jsonify({"status": "error", "message": "Invalid verification key"}), 400
         return jsonify({"status": "error", "message": "System under maintenance"}), 500
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
-        
 
 ############################ ck added # Checks if a user has clicked the verification link in their email
 @app.get("/api-verification-status/<key>")
@@ -311,10 +276,10 @@ def login():
         
         user_password = x.validate_user_password(request.json.get("user_password", ""))
         ic(user_password)
-        # user_email = x.validate_email(request.form.get("user_email", ""))
+       
         # ic(user_email)
 
-        # user_password = x.validate_user_password(request.form.get("user_password", ""))
+        
         # ic(user_password)
         
         db, cursor = x.db()
@@ -332,10 +297,6 @@ def login():
         if not check_password_hash(user["user_password"], user_password):
             return jsonify({"status": "error", "message": "Invalid credentials"}), 400
         access_token = create_access_token(identity=str(user["user_email"]))
-        
-       
-        
-        
         user.pop("user_password")
         session["user"] = user
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
@@ -358,49 +319,30 @@ def login():
         if "cursor" in locals():cursor.close()
         if "db" in locals(): db.close()
 
-################# this was for testing, DELETE
-# @app.get("/api-profile")
-# @jwt_required()
-# def profile():
-
-#     current_user = get_jwt_identity()
-
-#     return jsonify({
-#         "status": "ok",
-#         "user": current_user
-#     }), 200
-
 #############  See Mine oplysninger
 @app.get("/api-my-info")
 @jwt_required()
 def get_my_info():
 
     try:
-
         user_email = get_jwt_identity()
-
         db, cursor = x.db()
-
         q = """
         SELECT
             users.user_id,
             users.user_name,
             users.user_last_name,
             users.user_email,
-            
             users.user_phone,
-
             cars.car_plate,
 
             payment_gateway.payment_gateway_name,
             payment_gateway.payment_gateway_id, # ck added
+            
             memberships.membership_name,
             memberships.membership_description,
             memberships.membership_price
-
-           
             
-
         FROM users
 
         LEFT JOIN cars
@@ -446,19 +388,14 @@ def get_my_info():
                 "message": "User not found"
             }), 404
 
-        return jsonify({
-            "status": "ok",
-            "user": user
-        }), 200
+        return jsonify({"status": "ok","user": user}), 200
 
     except Exception as ex:
 
         ic(ex)
 
         return jsonify({
-            "status": "error",
-            "message": "System under maintenance"
-        }), 500
+        "status": "error", "message": "System under maintenance"}), 500
 
     finally:
 
@@ -748,7 +685,7 @@ def forgot_password():
         q = "SELECT user_id FROM users WHERE user_email = %s"
         cursor.execute(q, (user_email,))
         row = cursor.fetchone()
-        if not row: return "Email not found", 400
+        if not row: return jsonify({"status":"error","message":"user doesn't exist"}), 400
         # here i am saving the reset key to the DB
         
         q = "UPDATE users SET user_reset_password_key = %s WHERE user_email = %s"
@@ -761,7 +698,7 @@ def forgot_password():
         
         x.send_email(user_email, html)
 
-        return "Check your email"
+        return jsonify({"status":"ok", "message":"success"}),400
 
     except Exception as ex:
         ic(ex)
@@ -769,9 +706,9 @@ def forgot_password():
         if "db" in locals(): db.rollback()
 
         if "company_exception email" in str(ex):
-            return "invalid email", 400
+            jsonify({"status":"error","message":"invalid email "}), 400
 
-        return str(ex), 500
+        jsonify({"status":"error","message":"system under maintanance"}), 500
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
@@ -782,47 +719,42 @@ def forgot_password():
 @app.get("/reset-password/<key>")
 def show_reset_password(key):
     try:
-        key = x.validate_uuid4_paranoia(key)
-        
+        key = x.validate_id(key)
         db, cursor = x.db()
-        
-        q = """SELECT user_reset_password_key FROM users WHERE user_reset_password_key = %s"""
-        
-
+        q = "SELECT user_reset_password_key FROM users WHERE user_reset_password_key = %s"
         cursor.execute(q, (key,))
         row = cursor.fetchone()
-        
-
-        if not row: return "user doesn't exist", 400
-
-        return render_template("page_reset_password.html", key=key)
-    except Exception as ex: 
+        if not row:
+            return {"status": "error", "message": "user doesn't exist"}, 400
+        # If browser requests HTML, redirect to the Next.js reset password page with the key
+        if "text/html" in request.headers.get("Accept", ""):
+            # Adjust the URL below if your frontend runs on a different port or domain
+            frontend_url = f"http://localhost:3000/pages/reset-password?key={key}"
+            return redirect(frontend_url)
+        # For SPA/Next.js, just return OK and the key
+        return {"status": "ok", "key": key}, 200
+    except Exception as ex:
         ic(ex)
         if "company_exception paranoia" in str(ex):
-        
-            return "Invalid Key", 400
-
-        return str(ex), 500
+            return {"status": "error", "message": "Invalid Key"}, 400
+        return {"status": "error", "message": str(ex)}, 500
     finally:
         if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()    
-
-
-
+        if "db" in locals(): db.close()  
 ##############################
 @app.post("/reset-password")
 def reset_password():
     try:
-        # password = x.validate_user_password(request.json.get("password", ""))
-        password = x.validate_user_password(request.form.get("password", ""))
-        # confirm_password = request.json.get("confirm-password", "").strip()
-        confirm_password = request.form.get("confirm-password", "").strip()
+        password = x.validate_user_password(request.json.get("password", ""))
+        # password = x.validate_user_password(request.form.get("password", ""))
+        confirm_password = request.json.get("confirm-password", "").strip()
+        # confirm_password = request.form.get("confirm-password", "").strip()
 
         if confirm_password != password:
-            return "Passwords do not match", 400
+            return jsonify({"status":"error","message":"passwords doesn't match"}), 400
 
         # key = x.validate_uuid4_paranoia(request.json.get("key", ""))
-        key = x.validate_uuid4_paranoia(request.form.get("key", ""))
+        key = x.validate_uuid4_paranoia(request.json.get("key", ""))
 
         user_hashed_password = generate_password_hash(password)
 
@@ -839,11 +771,10 @@ def reset_password():
         db.commit()
 
         if cursor.rowcount == 0:
-            # TODO: Change string message to jsonify, so react can understand it
-            return "Oopsy try again", 400
+            return jsonify({"status":"error","message":"ups try again"}), 400
 
-        # TODO: change string to jsonify
-        return "Password changed, please login"
+       
+        return jsonify({"status":"ok","message":"succes"}), 400
 
     except Exception as ex:
         ic(ex)
@@ -852,7 +783,7 @@ def reset_password():
             return f"Password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characters", 400
 
         if "company_exception uuid4 invalid" in str(ex):
-            return "Invalid key", 400
+            return jsonify({"status":"error","message":"invalid key"}), 400
 
         return str(ex), 500
 
