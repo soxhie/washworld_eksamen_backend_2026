@@ -808,7 +808,7 @@ def get_favorites():
         user_email = get_jwt_identity()
         db, cursor = x.db()
         cursor.execute("SELECT location_id FROM favorites WHERE user_email = %s", (user_email,))
-        rows = cursor.fetchone()
+        rows = cursor.fetchall()
         location_ids = [row["location_id"] for row in rows]
         return jsonify({"status": "ok", "favorites": location_ids}), 200
     except Exception as ex:
