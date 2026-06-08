@@ -271,10 +271,49 @@ def show_login():
 @app.post("/api-login")
 def login():
     try:
-        user_email = x.validate_email(request.json.get("user_email", ""))
+        payload = request.get_json(silent=True) or {}
+        raw_email = str(payload.get("user_email", "")).strip()
+        raw_password = str(payload.get("user_password", ""))
+
+        field_errors = {}
+        error_codes = []
+
+        if not raw_email:
+            field_errors["user_email"] = "user_email is required"
+            error_codes.append("missing_user_email")
+        if not raw_password:
+            field_errors["user_password"] = "user_password is required"
+            error_codes.append("missing_user_password")
+
+        if field_errors:
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields",
+                "errors": field_errors,
+                "error_codes": error_codes
+            }), 400
+
+        try:
+            user_email = x.validate_email(raw_email)
+        except Exception:
+            field_errors["user_email"] = "Invalid email"
+            error_codes.append("invalid_user_email")
+
+        try:
+            user_password = x.validate_user_password(raw_password)
+        except Exception:
+            field_errors["user_password"] = f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"
+            error_codes.append("invalid_user_password")
+
+        if field_errors:
+            return jsonify({
+                "status": "error",
+                "message": "Validation failed",
+                "errors": field_errors,
+                "error_codes": error_codes
+            }), 400
+
         ic(user_email)
-        
-        user_password = x.validate_user_password(request.json.get("user_password", ""))
         ic(user_password)
        
         # ic(user_email)
@@ -306,14 +345,7 @@ def login():
     
     except Exception as ex:
         ic(ex)
-        
-        if "company_exception user_email" in str(ex):
-            return jsonify({"status":"error","message":"Invalid email"}), 400
-        
-        if "company_exception user_password" in str(ex):
-            return jsonify({"status":"error", "message":f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"}), 400
-        
-        return jsonify ({"status":"error", "message":"System under maintenance"}), 500
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
     
     finally:
         if "cursor" in locals():cursor.close()
@@ -333,6 +365,7 @@ def get_my_info():
             users.user_name,
             users.user_last_name,
             users.user_email,
+            users.user_address,
             users.user_phone,
             cars.car_plate,
 
@@ -604,67 +637,39 @@ def update_my_membership():
 @app.get("/api-my-wash-history")
 @jwt_required()
 def get_my_wash_history():
-
     try:
-
         user_email = get_jwt_identity()
-
         db, cursor = x.db()
-
-        q = "SELECT user_id FROM users WHERE user_email = %s LIMIT 1"
-        cursor.execute(q, (user_email,))
+ 
+        cursor.execute("SELECT user_id FROM users WHERE user_email = %s LIMIT 1", (user_email,))
         user = cursor.fetchone()
-
         if not user:
             return jsonify({"status": "error", "message": "User not found"}), 404
-
+ 
         user_id = user["user_id"]
-
-        q = """
-        SELECT
-            wash.wash_id,
-            wash.created_at,
-
-            memberships.membership_name,
-            memberships.membership_description,
-            memberships.membership_price
-
-        FROM wash
-
-        LEFT JOIN user_memberships
-        ON user_memberships.membership_user_fk = wash.membership_wash_fk
-
-        LEFT JOIN memberships
-        ON memberships.membership_id = user_memberships.membership_fk
-
-        WHERE wash.user_wash_fk = %s
-
-        ORDER BY wash.created_at DESC
-        """
-
-        cursor.execute(q, (user_id,))
+ 
+        cursor.execute("""
+            SELECT
+                wash.wash_id,
+                wash.created_at,
+                memberships.membership_name,
+                memberships.membership_price
+            FROM wash
+            LEFT JOIN memberships ON memberships.membership_id = wash.membership_wash_fk
+            WHERE wash.user_wash_fk = %s
+            ORDER BY wash.created_at DESC
+        """, (user_id,))
         washes = cursor.fetchall()
-
-        return jsonify({
-            "status": "ok",
-            "washes": washes
-        }), 
-
+ 
+        return jsonify({"status": "ok", "washes": washes}), 200
+ 
     except Exception as ex:
-
         ic(ex)
-
-        return jsonify({
-            "status": "error",
-            "message": "System under maintenance"
-        }), 500
-
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
     finally:
-
         if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()      
-        
-
+        if "db" in locals(): db.close()
+ 
 ######### forgot password  ##################################################
 ##############################
 @app.get("/forgot-password")
@@ -719,7 +724,7 @@ def forgot_password():
 @app.get("/reset-password/<key>")
 def show_reset_password(key):
     try:
-        key = x.validate_id(key)
+        key = x.validate_uuid4_paranoia(key)
         db, cursor = x.db()
         q = "SELECT user_reset_password_key FROM users WHERE user_reset_password_key = %s"
         cursor.execute(q, (key,))
@@ -736,8 +741,8 @@ def show_reset_password(key):
     except Exception as ex:
         ic(ex)
         if "company_exception paranoia" in str(ex):
-            return {"status": "error", "message": "Invalid Key"}, 400
-        return {"status": "error", "message": str(ex)}, 500
+            return ({"status": "error", "message": "Invalid Key"}), 400
+        return ({"status": "error", "message": str(ex)}), 500
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()  
@@ -774,7 +779,7 @@ def reset_password():
             return jsonify({"status":"error","message":"ups try again"}), 400
 
        
-        return jsonify({"status":"ok","message":"succes"}), 400
+        return jsonify({"status":"ok","message":"Succes"}), 200
 
     except Exception as ex:
         ic(ex)
@@ -852,6 +857,49 @@ def remove_favorite():
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
+
+
+@app.post("/api-start-wash")
+@jwt_required()
+def start_wash():
+    try:
+        wash_id = uuid.uuid4().hex
+        user_email = get_jwt_identity()  
+        db, cursor = x.db()
+
+        cursor.execute("SELECT user_id FROM users WHERE user_email = %s LIMIT 1", (user_email,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+
+        user_id = user["user_id"]
+
+        
+        cursor.execute("""
+            SELECT membership_fk
+            FROM user_memberships
+            WHERE membership_user_fk = %s
+            LIMIT 1
+        """, (user_id,))
+        membership = cursor.fetchone()
+        membership_id = membership["membership_fk"] if membership else None
+
+        cursor.execute("""
+            INSERT INTO wash (wash_id, created_at, user_wash_fk, membership_wash_fk)
+            VALUES (%s, %s, %s, %s)
+        """, (wash_id, int(time.time()), user_id, membership_id))
+
+        db.commit()
+
+        return jsonify({"status": "ok", "wash_id": wash_id}), 200
+
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
 
 
 
