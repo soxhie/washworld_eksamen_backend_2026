@@ -158,7 +158,8 @@ def signup_email():
     if "cursor" in locals():cursor.close()
     if "db" in locals(): db.close()
     
-####################     
+####################   For validating email on the frontend on step 1 ,before the user goes through every step
+
 @app.post("/email-validation")
 def email_validation():
     try:
@@ -232,7 +233,7 @@ def verification_status(key):
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
-############################ get payment method (for signup )
+############################ Get's the payment method (for signup )
 @app.get("/api-payment-gateways")
 def get_payment_gateways():
     try:
@@ -481,6 +482,10 @@ def get_my_membership():
 @jwt_required()
 def update_my_info():
     try:
+        # user_address = x.validate_user_address(request.json.get("user_address", ""))
+        # user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
+        # user_email = x.validate_email(request.json.get("user_email", ""))
+        
         user_email = get_jwt_identity()
         data = request.json
 
@@ -505,12 +510,12 @@ def update_my_info():
             q = "UPDATE users SET user_email = %s WHERE user_id = %s"
             cursor.execute(q, (new_email, user_id))
                
-        if "user_password" in data:
-            new_password = x.validate_user_password(data["user_password"])
-            hashed_password = generate_password_hash(new_password)
+        # if "user_password" in data:
+        #     new_password = x.validate_user_password(data["user_password"])
+        #     hashed_password = generate_password_hash(new_password)
 
-            q = "UPDATE users SET user_password = %s WHERE user_id = %s"
-            cursor.execute(q, (hashed_password, user_id))
+        #     q = "UPDATE users SET user_password = %s WHERE user_id = %s"
+        #     cursor.execute(q, (hashed_password, user_id))
             
          # Update payment method through transactions
         if "transaction_gateway_fk" in data:
@@ -521,9 +526,9 @@ def update_my_info():
             """
             cursor.execute(q, (data["transaction_gateway_fk"], user_id))
             
-        # if "user_address" in data:
-        #     q = "UPDATE users SET user_address = %s WHERE user_id = %s"
-        #     cursor.execute(q, (data["user_address"], user_id))
+        if "user_address" in data:
+            q = "UPDATE users SET user_address = %s WHERE user_id = %s"
+            cursor.execute(q, (data["user_address"], user_id))
 
         # Update cars table
         if "car_plate" in data:
@@ -606,6 +611,50 @@ def update_my_membership():
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
   
+  
+  
+######################### This adds the wash to the wash history which we later use with the get route to show the wash history,
+######################### we 
+@app.post("/api-start-wash")
+@jwt_required()
+def start_wash():
+    try:
+        wash_id = uuid.uuid4().hex
+        user_email = get_jwt_identity()  
+        db, cursor = x.db()
+
+        cursor.execute("SELECT user_id FROM users WHERE user_email = %s LIMIT 1", (user_email,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+
+        user_id = user["user_id"]
+
+        
+        cursor.execute("""
+            SELECT membership_fk
+            FROM user_memberships
+            WHERE membership_user_fk = %s
+            LIMIT 1
+        """, (user_id,))
+        membership = cursor.fetchone()
+        membership_id = membership["membership_fk"] if membership else None
+
+        cursor.execute("""
+            INSERT INTO wash (wash_id, created_at, user_wash_fk, membership_wash_fk)
+            VALUES (%s, %s, %s, %s)
+        """, (wash_id, int(time.time()), user_id, membership_id))
+
+        db.commit()
+
+        return jsonify({"status": "ok", "wash_id": wash_id}), 200
+
+    except Exception as ex:
+        ic(ex)
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
 ##################################################
 @app.get("/api-my-wash-history")
 @jwt_required()
@@ -832,46 +881,6 @@ def remove_favorite():
         if "db" in locals(): db.close()
 
 
-@app.post("/api-start-wash")
-@jwt_required()
-def start_wash():
-    try:
-        wash_id = uuid.uuid4().hex
-        user_email = get_jwt_identity()  
-        db, cursor = x.db()
-
-        cursor.execute("SELECT user_id FROM users WHERE user_email = %s LIMIT 1", (user_email,))
-        user = cursor.fetchone()
-        if not user:
-            return jsonify({"status": "error", "message": "User not found"}), 404
-
-        user_id = user["user_id"]
-
-        
-        cursor.execute("""
-            SELECT membership_fk
-            FROM user_memberships
-            WHERE membership_user_fk = %s
-            LIMIT 1
-        """, (user_id,))
-        membership = cursor.fetchone()
-        membership_id = membership["membership_fk"] if membership else None
-
-        cursor.execute("""
-            INSERT INTO wash (wash_id, created_at, user_wash_fk, membership_wash_fk)
-            VALUES (%s, %s, %s, %s)
-        """, (wash_id, int(time.time()), user_id, membership_id))
-
-        db.commit()
-
-        return jsonify({"status": "ok", "wash_id": wash_id}), 200
-
-    except Exception as ex:
-        ic(ex)
-        return jsonify({"status": "error", "message": "System under maintenance"}), 500
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
 
 
 
