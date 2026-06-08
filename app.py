@@ -271,54 +271,15 @@ def show_login():
 @app.post("/api-login")
 def login():
     try:
-        payload = request.get_json(silent=True) or {}
-        raw_email = str(payload.get("user_email", "")).strip()
-        raw_password = str(payload.get("user_password", ""))
-
-        field_errors = {}
-        error_codes = []
-
-        if not raw_email:
-            field_errors["user_email"] = "user_email is required"
-            error_codes.append("missing_user_email")
-        if not raw_password:
-            field_errors["user_password"] = "user_password is required"
-            error_codes.append("missing_user_password")
-
-        if field_errors:
-            return jsonify({
-                "status": "error",
-                "message": "Missing required fields",
-                "errors": field_errors,
-                "error_codes": error_codes
-            }), 400
-
-        try:
-            user_email = x.validate_email(raw_email)
-        except Exception:
-            field_errors["user_email"] = "Invalid email"
-            error_codes.append("invalid_user_email")
-
-        try:
-            user_password = x.validate_user_password(raw_password)
-        except Exception:
-            field_errors["user_password"] = f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"
-            error_codes.append("invalid_user_password")
-
-        if field_errors:
-            return jsonify({
-                "status": "error",
-                "message": "Validation failed",
-                "errors": field_errors,
-                "error_codes": error_codes
-            }), 400
-
+        user_email = x.validate_email(request.json.get("user_email", ""))
         ic(user_email)
+        
+        user_password = x.validate_user_password(request.json.get("user_password", ""))
         ic(user_password)
-       
+        # user_email = x.validate_email(request.form.get("user_email", ""))
         # ic(user_email)
 
-        
+        # user_password = x.validate_user_password(request.form.get("user_password", ""))
         # ic(user_password)
         
         db, cursor = x.db()
@@ -336,6 +297,10 @@ def login():
         if not check_password_hash(user["user_password"], user_password):
             return jsonify({"status": "error", "message": "Invalid credentials"}), 400
         access_token = create_access_token(identity=str(user["user_email"]))
+        
+       
+        
+        
         user.pop("user_password")
         session["user"] = user
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
@@ -345,11 +310,19 @@ def login():
     
     except Exception as ex:
         ic(ex)
-        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+        
+        if "company_exception user_email" in str(ex):
+            return jsonify({"status":"error","message":"Invalid email"}), 400
+        
+        if "company_exception user_password" in str(ex):
+            return jsonify({"status":"error", "message":f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"}), 400
+        
+        return jsonify ({"status":"error", "message":"System under maintenance"}), 500
     
     finally:
         if "cursor" in locals():cursor.close()
         if "db" in locals(): db.close()
+
 
 #############  See Mine oplysninger
 @app.get("/api-my-info")
