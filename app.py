@@ -356,10 +356,10 @@ def get_my_info():
 
         LEFT JOIN transactions
         ON transactions.transaction_id = (
-            SELECT t.transaction_id
-            FROM transactions t
-            WHERE t.transaction_user_fk = users.user_id
-            ORDER BY t.created_at DESC
+            SELECT transaction_id
+            FROM transactions 
+            WHERE transaction_user_fk = users.user_id
+            ORDER BY created_at DESC
             LIMIT 1
         )
 
@@ -368,8 +368,8 @@ def get_my_info():
 
         LEFT JOIN user_memberships
         ON user_memberships.user_memberships_id = (
-            SELECT um.user_memberships_id
-            FROM user_memberships um
+            SELECT user_memberships_id
+            FROM user_memberships
             WHERE um.membership_user_fk = users.user_id
             ORDER BY (um.status = 'active') DESC, um.created_at DESC
             LIMIT 1
@@ -435,7 +435,7 @@ def get_my_membership():
             SELECT um.user_memberships_id
             FROM user_memberships um
             WHERE um.membership_user_fk = users.user_id
-            ORDER BY (um.status = 'active') DESC, um.created_at DESC
+            ORDER BY (um.status = 'active') DESC, created_at DESC
             LIMIT 1
         )
 
