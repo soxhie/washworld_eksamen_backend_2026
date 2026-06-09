@@ -263,9 +263,9 @@ def get_memberships():
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 ######################## LOGIN
-@app.get("/login")
-def show_login():
-    return render_template("page_login.html")
+# @app.get("/login")
+# def show_login():
+#     return render_template("page_login.html")
 
 ##################################################### 
 @app.post("/api-login")
@@ -276,10 +276,10 @@ def login():
         
         user_password = x.validate_user_password(request.json.get("user_password", ""))
         ic(user_password)
-        # user_email = x.validate_email(request.form.get("user_email", ""))
+       
         # ic(user_email)
 
-        # user_password = x.validate_user_password(request.form.get("user_password", ""))
+        
         # ic(user_password)
         
         db, cursor = x.db()
@@ -296,13 +296,15 @@ def login():
 
         if not check_password_hash(user["user_password"], user_password):
             return jsonify({"status": "error", "message": "Invalid credentials"}), 400
+        # This creates a JWT — the ID badge the user keeps and sends with future requests untill it expires 
         access_token = create_access_token(identity=str(user["user_email"]))
         
        
         
         
         user.pop("user_password")
-        session["user"] = user
+        # Flask's session is a server-side cookie that remembers the user across requests.
+        
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
         x.send_email(user_email, html)
         
@@ -310,19 +312,11 @@ def login():
     
     except Exception as ex:
         ic(ex)
-        
-        if "company_exception user_email" in str(ex):
-            return jsonify({"status":"error","message":"Invalid email"}), 400
-        
-        if "company_exception user_password" in str(ex):
-            return jsonify({"status":"error", "message":f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"}), 400
-        
-        return jsonify ({"status":"error", "message":"System under maintenance"}), 500
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
     
     finally:
         if "cursor" in locals():cursor.close()
         if "db" in locals(): db.close()
-
 
 #############  See Mine oplysninger
 @app.get("/api-my-info")
@@ -369,9 +363,9 @@ def get_my_info():
         LEFT JOIN user_memberships
         ON user_memberships.user_memberships_id = (
             SELECT user_memberships_id
-            FROM user_memberships
-            WHERE um.membership_user_fk = users.user_id
-            ORDER BY (um.status = 'active') DESC, um.created_at DESC
+            FROM user_memberships 
+            WHERE membership_user_fk = users.user_id
+            ORDER BY (status = 'active') DESC, created_at DESC
             LIMIT 1
         )
 
@@ -432,10 +426,10 @@ def get_my_membership():
 
         LEFT JOIN user_memberships
         ON user_memberships.user_memberships_id = (
-            SELECT um.user_memberships_id
-            FROM user_memberships um
-            WHERE um.membership_user_fk = users.user_id
-            ORDER BY (um.status = 'active') DESC, created_at DESC
+            SELECT user_memberships_id
+            FROM user_memberships 
+            WHERE membership_user_fk = users.user_id
+            ORDER BY (status = 'active') DESC, created_at DESC
             LIMIT 1
         )
 
@@ -481,6 +475,8 @@ def get_my_membership():
 @jwt_required()
 def update_my_info():
     try:
+       
+        
         user_email = get_jwt_identity()
         data = request.json
 
@@ -495,10 +491,11 @@ def update_my_info():
 
         user_id = user["user_id"]
 
-        # Update users table
+        
         if "user_phone" in data:
+            new_phone = x.validate_user_phone(data["user_phone"])
             q = "UPDATE users SET user_phone = %s WHERE user_id = %s"
-            cursor.execute(q, (data["user_phone"], user_id))
+            cursor.execute(q, (new_phone, user_id)) 
 
         if "user_email" in data:
             new_email = x.validate_email(data["user_email"])
@@ -521,9 +518,10 @@ def update_my_info():
             """
             cursor.execute(q, (data["transaction_gateway_fk"], user_id))
             
-        # if "user_address" in data:
-        #     q = "UPDATE users SET user_address = %s WHERE user_id = %s"
-        #     cursor.execute(q, (data["user_address"], user_id))
+        if "user_address" in data:
+            new_address = x.validate_user_address(data["user_address"])
+            q = "UPDATE users SET user_address = %s WHERE user_id = %s"
+            cursor.execute(q, (new_address, user_id)) 
 
         # Update cars table
         if "car_plate" in data:
@@ -607,6 +605,10 @@ def update_my_membership():
         if "db" in locals(): db.close()
   
 ##################################################
+#### LEFT JOIN memberships ON memberships.membership_id = wash.membership_wash_fk this does that the membership the user has when they do 
+# the wash, is the one that shows in the wash history, 
+# if they change their membership after doing the wash, it will not change the membership that shows in the wash history, 
+# because we save the membership id in the wash table when they do the wash, so we can always show the correct membership in the wash history.
 @app.get("/api-my-wash-history")
 @jwt_required()
 def get_my_wash_history():
@@ -645,9 +647,9 @@ def get_my_wash_history():
  
 ######### forgot password  ##################################################
 ##############################
-@app.get("/forgot-password")
-def show_forgot_password():
-    return render_template("page_forgot_password.html")
+# @app.get("/forgot-password")
+# def show_forgot_password():
+#     return render_template("page_forgot_password.html")
 
 ##############################
 @app.post("/forgot-password")
@@ -832,46 +834,53 @@ def remove_favorite():
         if "db" in locals(): db.close()
 
 
-@app.post("/api-start-wash")
-@jwt_required()
+# Frontend sends a post request to this endpoint when the user clicks the "start wash" button. 
+# The endpoint creates a new wash record in the database linked to the logged in user and their 
+# membership (if they have one). It returns the wash_id of the newly created wash, which can be 
+# used by the frontend to track the wash status and display it to the user.
+
+@app.post("/api-start-wash")        # listens for POST requests on /api-start-wash
+@jwt_required()                     # requires a valid JWT token — protected route
 def start_wash():
     try:
-        wash_id = uuid.uuid4().hex
-        user_email = get_jwt_identity()  
-        db, cursor = x.db()
+        wash_id = uuid.uuid4().hex  # generates a unique id for the wash
+        user_email = get_jwt_identity()     # 1. gets the user email from the JWT token
+        db, cursor = x.db()                 # opens database connection
 
         cursor.execute("SELECT user_id FROM users WHERE user_email = %s LIMIT 1", (user_email,))
-        user = cursor.fetchone()
+        user = cursor.fetchone()            # 1. fetches the user from the database
         if not user:
             return jsonify({"status": "error", "message": "User not found"}), 404
+        user_id = user["user_id"]           # 1. gets the user_id from the fetched user
 
-        user_id = user["user_id"]
-
-        
         cursor.execute("""
             SELECT membership_fk
             FROM user_memberships
             WHERE membership_user_fk = %s
             LIMIT 1
         """, (user_id,))
-        membership = cursor.fetchone()
+        membership = cursor.fetchone()      # 2. fetches the user's active membership
         membership_id = membership["membership_fk"] if membership else None
+                                             # 2. gets the membership id — None if no membership found
 
         cursor.execute("""
             INSERT INTO wash (wash_id, created_at, user_wash_fk, membership_wash_fk)
             VALUES (%s, %s, %s, %s)
         """, (wash_id, int(time.time()), user_id, membership_id))
-
-        db.commit()
+                                            # 3. inserts a new wash row into the wash table
+        db.commit()                         # 3. stamps the changes to the database
 
         return jsonify({"status": "ok", "wash_id": wash_id}), 200
+                                            # 4. returns success response with the wash id to the frontend
 
     except Exception as ex:
-        ic(ex)
+        ic(ex)                              # prints the error in the terminal for debugging
         return jsonify({"status": "error", "message": "System under maintenance"}), 500
+                                            # worst case — system error
+
     finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
+        if "cursor" in locals(): cursor.close()     # always close the cursor
+        if "db" in locals(): db.close()             # always close the database connection
 
 
 
