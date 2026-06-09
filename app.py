@@ -263,57 +263,18 @@ def get_memberships():
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 ######################## LOGIN
-@app.get("/login")
-def show_login():
-    return render_template("page_login.html")
+# @app.get("/login")
+# def show_login():
+#     return render_template("page_login.html")
 
 ##################################################### 
 @app.post("/api-login")
 def login():
     try:
-        payload = request.get_json(silent=True) or {}
-        raw_email = str(payload.get("user_email", "")).strip()
-        raw_password = str(payload.get("user_password", ""))
-
-        field_errors = {}
-        error_codes = []
-
-        if not raw_email:
-            field_errors["user_email"] = "user_email is required"
-            error_codes.append("missing_user_email")
-        if not raw_password:
-            field_errors["user_password"] = "user_password is required"
-            error_codes.append("missing_user_password")
-
-        if field_errors:
-            return jsonify({
-                "status": "error",
-                "message": "Missing required fields",
-                "errors": field_errors,
-                "error_codes": error_codes
-            }), 400
-
-        try:
-            user_email = x.validate_email(raw_email)
-        except Exception:
-            field_errors["user_email"] = "Invalid email"
-            error_codes.append("invalid_user_email")
-
-        try:
-            user_password = x.validate_user_password(raw_password)
-        except Exception:
-            field_errors["user_password"] = f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"
-            error_codes.append("invalid_user_password")
-
-        if field_errors:
-            return jsonify({
-                "status": "error",
-                "message": "Validation failed",
-                "errors": field_errors,
-                "error_codes": error_codes
-            }), 400
-
+        user_email = x.validate_email(request.json.get("user_email", ""))
         ic(user_email)
+        
+        user_password = x.validate_user_password(request.json.get("user_password", ""))
         ic(user_password)
        
         # ic(user_email)
@@ -335,9 +296,15 @@ def login():
 
         if not check_password_hash(user["user_password"], user_password):
             return jsonify({"status": "error", "message": "Invalid credentials"}), 400
+        # This creates a JWT — the ID badge the user keeps and sends with future requests untill it expires 
         access_token = create_access_token(identity=str(user["user_email"]))
+        
+       
+        
+        
         user.pop("user_password")
-        session["user"] = user
+        # Flask's session is a server-side cookie that remembers the user across requests.
+        
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
         x.send_email(user_email, html)
         
@@ -383,10 +350,10 @@ def get_my_info():
 
         LEFT JOIN transactions
         ON transactions.transaction_id = (
-            SELECT t.transaction_id
-            FROM transactions t
-            WHERE t.transaction_user_fk = users.user_id
-            ORDER BY t.created_at DESC
+            SELECT transaction_id
+            FROM transactions 
+            WHERE transaction_user_fk = users.user_id
+            ORDER BY created_at DESC
             LIMIT 1
         )
 
@@ -395,10 +362,10 @@ def get_my_info():
 
         LEFT JOIN user_memberships
         ON user_memberships.user_memberships_id = (
-            SELECT um.user_memberships_id
-            FROM user_memberships um
-            WHERE um.membership_user_fk = users.user_id
-            ORDER BY (um.status = 'active') DESC, um.created_at DESC
+            SELECT user_memberships_id
+            FROM user_memberships 
+            WHERE membership_user_fk = users.user_id
+            ORDER BY (status = 'active') DESC, created_at DESC
             LIMIT 1
         )
 
@@ -459,10 +426,10 @@ def get_my_membership():
 
         LEFT JOIN user_memberships
         ON user_memberships.user_memberships_id = (
-            SELECT um.user_memberships_id
-            FROM user_memberships um
-            WHERE um.membership_user_fk = users.user_id
-            ORDER BY (um.status = 'active') DESC, um.created_at DESC
+            SELECT user_memberships_id
+            FROM user_memberships 
+            WHERE membership_user_fk = users.user_id
+            ORDER BY (status = 'active') DESC, created_at DESC
             LIMIT 1
         )
 
@@ -508,6 +475,8 @@ def get_my_membership():
 @jwt_required()
 def update_my_info():
     try:
+       
+        
         user_email = get_jwt_identity()
         data = request.json
 
@@ -522,10 +491,11 @@ def update_my_info():
 
         user_id = user["user_id"]
 
-        # Update users table
+        
         if "user_phone" in data:
+            new_phone = x.validate_user_phone(data["user_phone"])
             q = "UPDATE users SET user_phone = %s WHERE user_id = %s"
-            cursor.execute(q, (data["user_phone"], user_id))
+            cursor.execute(q, (new_phone, user_id)) 
 
         if "user_email" in data:
             new_email = x.validate_email(data["user_email"])
@@ -548,9 +518,10 @@ def update_my_info():
             """
             cursor.execute(q, (data["transaction_gateway_fk"], user_id))
             
-        # if "user_address" in data:
-        #     q = "UPDATE users SET user_address = %s WHERE user_id = %s"
-        #     cursor.execute(q, (data["user_address"], user_id))
+        if "user_address" in data:
+            new_address = x.validate_user_address(data["user_address"])
+            q = "UPDATE users SET user_address = %s WHERE user_id = %s"
+            cursor.execute(q, (new_address, user_id)) 
 
         # Update cars table
         if "car_plate" in data:
@@ -634,6 +605,10 @@ def update_my_membership():
         if "db" in locals(): db.close()
   
 ##################################################
+#### LEFT JOIN memberships ON memberships.membership_id = wash.membership_wash_fk this does that the membership the user has when they do 
+# the wash, is the one that shows in the wash history, 
+# if they change their membership after doing the wash, it will not change the membership that shows in the wash history, 
+# because we save the membership id in the wash table when they do the wash, so we can always show the correct membership in the wash history.
 @app.get("/api-my-wash-history")
 @jwt_required()
 def get_my_wash_history():
@@ -672,9 +647,9 @@ def get_my_wash_history():
  
 ######### forgot password  ##################################################
 ##############################
-@app.get("/forgot-password")
-def show_forgot_password():
-    return render_template("page_forgot_password.html")
+# @app.get("/forgot-password")
+# def show_forgot_password():
+#     return render_template("page_forgot_password.html")
 
 ##############################
 @app.post("/forgot-password")
