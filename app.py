@@ -158,8 +158,7 @@ def signup_email():
     if "cursor" in locals():cursor.close()
     if "db" in locals(): db.close()
     
-####################   For validating email on the frontend on step 1 ,before the user goes through every step
-
+####################     
 @app.post("/email-validation")
 def email_validation():
     try:
@@ -233,7 +232,7 @@ def verification_status(key):
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
-############################ Get's the payment method (for signup )
+############################ get payment method (for signup )
 @app.get("/api-payment-gateways")
 def get_payment_gateways():
     try:
@@ -272,15 +271,54 @@ def show_login():
 @app.post("/api-login")
 def login():
     try:
-        user_email = x.validate_email(request.json.get("user_email", ""))
+        payload = request.get_json(silent=True) or {}
+        raw_email = str(payload.get("user_email", "")).strip()
+        raw_password = str(payload.get("user_password", ""))
+
+        field_errors = {}
+        error_codes = []
+
+        if not raw_email:
+            field_errors["user_email"] = "user_email is required"
+            error_codes.append("missing_user_email")
+        if not raw_password:
+            field_errors["user_password"] = "user_password is required"
+            error_codes.append("missing_user_password")
+
+        if field_errors:
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields",
+                "errors": field_errors,
+                "error_codes": error_codes
+            }), 400
+
+        try:
+            user_email = x.validate_email(raw_email)
+        except Exception:
+            field_errors["user_email"] = "Invalid email"
+            error_codes.append("invalid_user_email")
+
+        try:
+            user_password = x.validate_user_password(raw_password)
+        except Exception:
+            field_errors["user_password"] = f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"
+            error_codes.append("invalid_user_password")
+
+        if field_errors:
+            return jsonify({
+                "status": "error",
+                "message": "Validation failed",
+                "errors": field_errors,
+                "error_codes": error_codes
+            }), 400
+
         ic(user_email)
-        
-        user_password = x.validate_user_password(request.json.get("user_password", ""))
         ic(user_password)
-        # user_email = x.validate_email(request.form.get("user_email", ""))
+       
         # ic(user_email)
 
-        # user_password = x.validate_user_password(request.form.get("user_password", ""))
+        
         # ic(user_password)
         
         db, cursor = x.db()
@@ -298,10 +336,6 @@ def login():
         if not check_password_hash(user["user_password"], user_password):
             return jsonify({"status": "error", "message": "Invalid credentials"}), 400
         access_token = create_access_token(identity=str(user["user_email"]))
-        
-       
-        
-        
         user.pop("user_password")
         session["user"] = user
         html = render_template ("email_login_warning.html", ip = request.remote_addr)
@@ -311,19 +345,11 @@ def login():
     
     except Exception as ex:
         ic(ex)
-        
-        if "company_exception user_email" in str(ex):
-            return jsonify({"status":"error","message":"Invalid email"}), 400
-        
-        if "company_exception user_password" in str(ex):
-            return jsonify({"status":"error", "message":f"user password {x.USER_PASSWORD_MIN} to {x.USER_PASSWORD_MAX} characthers"}), 400
-        
-        return jsonify ({"status":"error", "message":"System under maintenance"}), 500
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
     
     finally:
         if "cursor" in locals():cursor.close()
         if "db" in locals(): db.close()
-
 
 #############  See Mine oplysninger
 @app.get("/api-my-info")
@@ -482,10 +508,6 @@ def get_my_membership():
 @jwt_required()
 def update_my_info():
     try:
-        # user_address = x.validate_user_address(request.json.get("user_address", ""))
-        # user_phone = x.validate_user_phone(request.json.get("user_phone", ""))
-        # user_email = x.validate_email(request.json.get("user_email", ""))
-        
         user_email = get_jwt_identity()
         data = request.json
 
@@ -510,12 +532,12 @@ def update_my_info():
             q = "UPDATE users SET user_email = %s WHERE user_id = %s"
             cursor.execute(q, (new_email, user_id))
                
-        # if "user_password" in data:
-        #     new_password = x.validate_user_password(data["user_password"])
-        #     hashed_password = generate_password_hash(new_password)
+        if "user_password" in data:
+            new_password = x.validate_user_password(data["user_password"])
+            hashed_password = generate_password_hash(new_password)
 
-        #     q = "UPDATE users SET user_password = %s WHERE user_id = %s"
-        #     cursor.execute(q, (hashed_password, user_id))
+            q = "UPDATE users SET user_password = %s WHERE user_id = %s"
+            cursor.execute(q, (hashed_password, user_id))
             
          # Update payment method through transactions
         if "transaction_gateway_fk" in data:
@@ -526,9 +548,9 @@ def update_my_info():
             """
             cursor.execute(q, (data["transaction_gateway_fk"], user_id))
             
-        if "user_address" in data:
-            q = "UPDATE users SET user_address = %s WHERE user_id = %s"
-            cursor.execute(q, (data["user_address"], user_id))
+        # if "user_address" in data:
+        #     q = "UPDATE users SET user_address = %s WHERE user_id = %s"
+        #     cursor.execute(q, (data["user_address"], user_id))
 
         # Update cars table
         if "car_plate" in data:
@@ -611,50 +633,6 @@ def update_my_membership():
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
   
-  
-  
-######################### This adds the wash to the wash history which we later use with the get route to show the wash history,
-######################### we 
-@app.post("/api-start-wash")
-@jwt_required()
-def start_wash():
-    try:
-        wash_id = uuid.uuid4().hex
-        user_email = get_jwt_identity()  
-        db, cursor = x.db()
-
-        cursor.execute("SELECT user_id FROM users WHERE user_email = %s LIMIT 1", (user_email,))
-        user = cursor.fetchone()
-        if not user:
-            return jsonify({"status": "error", "message": "User not found"}), 404
-
-        user_id = user["user_id"]
-
-        
-        cursor.execute("""
-            SELECT membership_fk
-            FROM user_memberships
-            WHERE membership_user_fk = %s
-            LIMIT 1
-        """, (user_id,))
-        membership = cursor.fetchone()
-        membership_id = membership["membership_fk"] if membership else None
-
-        cursor.execute("""
-            INSERT INTO wash (wash_id, created_at, user_wash_fk, membership_wash_fk)
-            VALUES (%s, %s, %s, %s)
-        """, (wash_id, int(time.time()), user_id, membership_id))
-
-        db.commit()
-
-        return jsonify({"status": "ok", "wash_id": wash_id}), 200
-
-    except Exception as ex:
-        ic(ex)
-        return jsonify({"status": "error", "message": "System under maintenance"}), 500
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
 ##################################################
 @app.get("/api-my-wash-history")
 @jwt_required()
@@ -881,6 +859,53 @@ def remove_favorite():
         if "db" in locals(): db.close()
 
 
+# Frontend sends a post request to this endpoint when the user clicks the "start wash" button. 
+# The endpoint creates a new wash record in the database linked to the logged in user and their 
+# membership (if they have one). It returns the wash_id of the newly created wash, which can be 
+# used by the frontend to track the wash status and display it to the user.
+
+@app.post("/api-start-wash")        # listens for POST requests on /api-start-wash
+@jwt_required()                     # requires a valid JWT token — protected route
+def start_wash():
+    try:
+        wash_id = uuid.uuid4().hex  # generates a unique id for the wash
+        user_email = get_jwt_identity()     # 1. gets the user email from the JWT token
+        db, cursor = x.db()                 # opens database connection
+
+        cursor.execute("SELECT user_id FROM users WHERE user_email = %s LIMIT 1", (user_email,))
+        user = cursor.fetchone()            # 1. fetches the user from the database
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+        user_id = user["user_id"]           # 1. gets the user_id from the fetched user
+
+        cursor.execute("""
+            SELECT membership_fk
+            FROM user_memberships
+            WHERE membership_user_fk = %s
+            LIMIT 1
+        """, (user_id,))
+        membership = cursor.fetchone()      # 2. fetches the user's active membership
+        membership_id = membership["membership_fk"] if membership else None
+                                             # 2. gets the membership id — None if no membership found
+
+        cursor.execute("""
+            INSERT INTO wash (wash_id, created_at, user_wash_fk, membership_wash_fk)
+            VALUES (%s, %s, %s, %s)
+        """, (wash_id, int(time.time()), user_id, membership_id))
+                                            # 3. inserts a new wash row into the wash table
+        db.commit()                         # 3. stamps the changes to the database
+
+        return jsonify({"status": "ok", "wash_id": wash_id}), 200
+                                            # 4. returns success response with the wash id to the frontend
+
+    except Exception as ex:
+        ic(ex)                              # prints the error in the terminal for debugging
+        return jsonify({"status": "error", "message": "System under maintenance"}), 500
+                                            # worst case — system error
+
+    finally:
+        if "cursor" in locals(): cursor.close()     # always close the cursor
+        if "db" in locals(): db.close()             # always close the database connection
 
 
 
